@@ -1,6 +1,5 @@
 from random import choice
 
-
 class RandomClass:
     def __init__(self):
         self.assault_rifle_weapons = [
@@ -36,7 +35,7 @@ class RandomClass:
         self.mg_attachments = [
             "No Attachment", "Extended Mags", "Rapid Fire", "Red Dot Sight", "Silencer",
             "ACOG Scope", "FMJ", "Akimbo", "Holographic Sight",
-            "Thermal Scope", "Extended Magazines",
+            "Thermal Scope",
         ]
         
         self.pistols_weapons = [
@@ -45,7 +44,6 @@ class RandomClass:
 
         self.pistols_attachments = [
             "No Attachment", "Akimbo", "Tactical Knife", "Silencer", "FMJ",
-            "Extended Mags",
         ]
         
         self.auto_pistols_weapons = [
@@ -63,7 +61,7 @@ class RandomClass:
 
         self.shotgun_attachments = [
             "No Attachment", "Grip", "Red Dot Sight", "Silencer", "FMJ",
-            "Extended Mags", "holographic Sight",
+            "Extended Mags", "Holographic Sight",
         ]
 
         self.shotgun_attachments_akimbo = [
@@ -71,7 +69,7 @@ class RandomClass:
         ]   
         
         self.launchers_weapons = [
-            "RPG-7", "AT4-HS", "STINGER", "JAVELIN", "THUMPER", "M203",
+            "RPG-7", "AT4-HS", "STINGER", "JAVELIN", "THUMPER",
         ]
         
         self.equipment = [
@@ -84,8 +82,8 @@ class RandomClass:
         ]
         
         self.perk1 = [
-            "Marathon", "Sleight of Hand", "Scavenger", "Bling", "One Man Army",
-        ]
+            "Marathon", "Sleight of Hand", "Scavenger", "Bling", 
+        ] #"One Man Army",
         
         self.perk2 = [
             "Stopping Power", "Lightweight", "Hardline", "Cold-Blooded", "Danger Close",
@@ -146,42 +144,43 @@ class RandomClass:
         
         if weapon_type == "Assault Rifle":
             weapon = choice(self.assault_rifle_weapons)
-            attachment = choice(self.assault_rifle_attachments)
+            attachment_list = self.assault_rifle_attachments if perk1 != "Bling" else [att for att in self.assault_rifle_attachments if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-                attachment2 = get_unique_attachment(self.assault_rifle_attachments, attachment)
+                attachment2 = get_unique_attachment(attachment_list, attachment)
                 return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
         elif weapon_type == "Submachine Gun":
             weapon = choice(self.mp_weapons)
-            attachment = choice(self.mg_attachments)
+            attachment_list = self.mg_attachments if perk1 != "Bling" else [att for att in self.mg_attachments if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-                attachment2 = get_unique_attachment(self.mg_attachments, attachment)                
+                attachment2 = get_unique_attachment(attachment_list, attachment)
                 return f"{weapon} with {attachment} & {attachment2}"
             
             return f"{weapon} with {attachment}"
         
         elif weapon_type == "Light Machine Gun":
             weapon = choice(self.lmg_weapons)
-            attachment = choice(self.lmg_attachments)
+            attachment_list = self.lmg_attachments if perk1 != "Bling" else [att for att in self.lmg_attachments if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-               attachment2 = get_unique_attachment(self.lmg_attachments, attachment)
+               attachment2 = get_unique_attachment(attachment_list, attachment)
                return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
         elif weapon_type == "Sniper Rifle":
             weapon = choice(self.sniper_weapons)
-            attachment = choice(self.sniper_attachments)
+            attachment_list = self.sniper_attachments if perk1 != "Bling" else [att for att in self.sniper_attachments if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-                attachment2 = get_unique_attachment(self.sniper_attachments, attachment)
+                attachment2 = get_unique_attachment(attachment_list, attachment)
                 return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
     def get_random_secondary(self, perk1) -> str:
 
-        if perk1 == "One Man Army":
-            return "No Secondary"
-        
         def get_unique_attachment(attachment_list, previous_attachment):
             attachment = choice(attachment_list)
             while attachment == previous_attachment:
@@ -192,32 +191,49 @@ class RandomClass:
 
         if weapon_type == "Pistol":
             weapon = choice(self.pistols_weapons)
-            attachment = choice(self.pistols_attachments)
+            if weapon == "DESERT EAGLE":
+                attachment_list = [att for att in self.pistols_attachments if att != "Extended Mags"] + ["Silencer"]
+            elif weapon == ".44 MAGNUM":
+                attachment_list = ["Akimbo", "Tactical Knife", "FMJ"]
+            else:
+                attachment_list = self.pistols_attachments
+
+            attachment_list = attachment_list if perk1 != "Bling" else [att for att in attachment_list if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-                attachment2 = get_unique_attachment(self.pistols_attachments, attachment)
+                attachment2 = get_unique_attachment(attachment_list, attachment)
                 return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
         elif weapon_type == "Machine Pistol":
             weapon = choice(self.auto_pistols_weapons)
-            attachment = choice(self.auto_pistols_attachments)
+            if weapon == "TMP":
+                attachment_list = ["Red Dot Sight", "Holographic Sight", "Thermal", "ACOG"]
+            else:
+                attachment_list = self.auto_pistols_attachments
+
+            attachment_list = attachment_list if perk1 != "Bling" else [att for att in attachment_list if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
-                attachment2 = get_unique_attachment(self.auto_pistols_attachments, attachment)
+                attachment2 = get_unique_attachment(attachment_list, attachment)
                 return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
         elif weapon_type == "Shotgun":
             weapon = choice(self.shotgun_weapons)
             if weapon == "MODEL 1887" or weapon == "RANGER":
-                attachment = choice(self.shotgun_attachments_akimbo)
+                attachment_list = self.shotgun_attachments_akimbo
             else:
-                attachment = choice(self.shotgun_attachments)
+                attachment_list = self.shotgun_attachments
+
+            attachment_list = attachment_list if perk1 != "Bling" else [att for att in attachment_list if att != "No Attachment"]
+            attachment = choice(attachment_list)
             if perk1 == "Bling":
                 if weapon == "MODEL 1887" or weapon == "RANGER":
-                    attachment2 = choice(self.shotgun_attachments_akimbo)
+                    attachment2 = choice(attachment_list)
                     return f"{weapon} with {attachment} & {attachment2}"
                 else:
-                    attachment2 = get_unique_attachment(self.shotgun_attachments, attachment)
+                    attachment2 = get_unique_attachment(attachment_list, attachment)
                     return f"{weapon} with {attachment} & {attachment2}"
             return f"{weapon} with {attachment}"
         
@@ -252,10 +268,13 @@ class RandomClass:
         perk2 = self.get_random_perk2()
         perk3 = self.get_random_perk3()
         primary = self.get_random_primary(perk1)
-        #primary_attachments = self.add_attachments_to_primary(primary, perk1)
-        secondary = self.get_random_secondary()
+        secondary = self.get_random_secondary(perk1)
         equipment = self.get_random_equipment()
         special_grenade = self.get_random_special_grenade()
        
         
         return f"Primary: {primary}\nSecondary: {secondary}\nEquipment: {equipment}\nSpecial Grenade: {special_grenade}\nPerk 1: {perk1}\nPerk 2: {perk2}\nPerk 3: {perk3}"
+
+# Beispiel der Verwendung
+random_class = RandomClass()
+print(random_class.get_random_class())

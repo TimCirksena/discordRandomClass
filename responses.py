@@ -6,8 +6,8 @@ import randomClass
 
 def get_response(user_input: str)-> str:
     random_class: str = "?random"
-
-    if user_input == random_class:
+    zufalls_class: str = "?zufall"
+    if user_input == random_class or user_input == zufalls_class:
         return create_random_embed()
     elif user_input == "?map":
         return create_map_embed()
