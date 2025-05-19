@@ -21,6 +21,9 @@ class RandomClass:
         self.sniper_weapons = [
             "WA2000", "M21 EBR", "Barrett .50cal", "Intervention",
         ]
+        self.riot_shield = [
+            "Riot Shield",
+        ]
 
         # Sekundärwaffen
         self.pistols_weapons = [
@@ -47,7 +50,7 @@ class RandomClass:
             "Shotgun": "Shotgun",
             "Holographic Sight": "Sight",
             "Heartbeat Sensor": "Sensor",
-            "Thermal": "Sight",  # Von "Sensor" zu "Sight" geändert
+            "Thermal Scope": "Sight",  # Von "Sensor" zu "Sight" geändert
             "Extended Mags": "Ammo",
         }
 
@@ -57,7 +60,7 @@ class RandomClass:
             "ACOG Scope": "Sight",
             "FMJ": "Ammo",
             "Heartbeat Sensor": "Sensor",
-            "Thermal": "Sight",  # Von "Sensor" zu "Sight" geändert
+            "Thermal Scope": "Sight",  # Von "Sensor" zu "Sight" geändert
             "Extended Mags": "Ammo",
         }
 
@@ -70,7 +73,7 @@ class RandomClass:
             "FMJ": "Ammo",
             "Holographic Sight": "Sight",
             "Heartbeat Sensor": "Sensor",
-            "Thermal": "Sight",  # Von "Sensor" zu "Sight" geändert
+            "Thermal Scope": "Sight",  # Von "Sensor" zu "Sight" geändert
             "Extended Mags": "Ammo",
         }
 
@@ -121,12 +124,12 @@ class RandomClass:
         }
 
         # Liste der Sights zur Vereinfachung
-        self.sights = ["Holographic Sight", "Red Dot Sight", "ACOG Scope", "Thermal"]
+        self.sights = ["Holographic Sight", "Red Dot Sight", "ACOG Scope", "Thermal Scope"]
 
         # Inkompatibilitätsregeln für Aufsätze
         self.incompatible_attachments = {
-            "Holographic Sight": ["Akimbo", "Red Dot Sight", "ACOG Scope", "Thermal"],
-            "Red Dot Sight": ["Holographic Sight", "ACOG Scope", "Thermal"],
+            "Holographic Sight": ["Akimbo", "Red Dot Sight", "ACOG Scope", "Thermal Scope"],
+            "Red Dot Sight": ["Holographic Sight", "ACOG Scope", "Thermal Scope"],
             "Akimbo": ["Holographic Sight", "Red Dot Sight"],
             "Tactical Knife": ["Akimbo"],
             # Weitere Inkompatibilitäten können hier hinzugefügt werden
@@ -134,7 +137,8 @@ class RandomClass:
 
         # Equipment und Tactical
         self.equipment = [
-            "Frag", "Semtex", "Throwing Knife", "Tactical Insertion", "Blast Shield",
+            "Frag", "Semtex", "Throwing Knife", #"Tactical Insertion",
+            "Blast Shield",
             "Claymore", "C4",
         ]
 
@@ -203,24 +207,55 @@ class RandomClass:
     # ------------------------------ RANDOM PRIMARY -------------------------------------
     # ----------------------------------------------------------------------------------
     def get_random_primary(self, perk1) -> str:
-        weapon_type = choice(["Assault Rifle", "Submachine Gun", "Light Machine Gun", "Sniper Rifle"])
-
+        # Alle Primärwaffen in einem Array zusammenführen
+        merged_primary = (
+            self.assault_rifle_weapons +
+            self.mp_weapons +
+            self.lmg_weapons +
+            self.sniper_weapons +
+            self.riot_shield
+        )
+        # Zufälliges Element aus dem gemergten Array auswählen
+        weapon = choice(merged_primary)
+    
+        # Je nach Kategorie das passende Attachment-Dictionary und den "weapon_type" bestimmen
+        if weapon in self.riot_shield:
+            # Riot Shield – keine Attachments
+            selection_counts_global[weapon] += 1
+            return weapon
+        elif weapon in self.assault_rifle_weapons:
+            attachment_dict = self.assault_rifle_attachments
+            weapon_type = "Assault Rifle"
+        elif weapon in self.mp_weapons:
+            attachment_dict = self.mg_attachments
+            weapon_type = "Submachine Gun"
+        elif weapon in self.lmg_weapons:
+            attachment_dict = self.lmg_attachments
+            weapon_type = "Light Machine Gun"
+        elif weapon in self.sniper_weapons:
+            attachment_dict = self.sniper_attachments
+            weapon_type = "Sniper Rifle"
+        else:
+            weapon = "Unknown Weapon"
+            attachment_dict = {}
+            weapon_type = ""
+    
+        # Zähle die ausgewählte Waffe im globalen Zähler
+        if weapon != "Unknown Weapon":
+            selection_counts_global[weapon] += 1
+    
+        # Innere Funktionen für die Auswahl der Attachments:
         def select_two_attachments_with_incompatibility(attachment_dict, weapon_type):
             possible_attachments = [att for att in attachment_dict if att != "No Attachment"]
             if not possible_attachments:
                 return "No Attachment"
-
             attempts = 0
             max_attempts = 100
-
             while attempts < max_attempts:
                 first_attachment = choice(possible_attachments)
                 first_incompatibles = self.incompatible_attachments.get(first_attachment, [])
-
-                # Waffentyp-spezifische Einschränkungen
                 if weapon_type == "Assault Rifle":
                     if first_attachment in self.sights:
-                        # Zweites Attachment darf kein weiteres Sight sein
                         available_attachments = [
                             att for att in possible_attachments
                             if att != first_attachment
@@ -228,7 +263,6 @@ class RandomClass:
                             and att not in self.sights
                             and att not in ["Shotgun", "Grenade Launcher"]
                         ]
-                        # Zusätzlich darf entweder Grenade Launcher oder Shotgun gewählt werden
                         additional_attachments = [
                             att for att in possible_attachments if att in ["Grenade Launcher", "Shotgun"]
                         ]
@@ -250,10 +284,8 @@ class RandomClass:
                     else:
                         available_attachments = [
                             att for att in possible_attachments
-                            if att != first_attachment
-                            and att not in first_incompatibles
+                            if att != first_attachment and att not in first_incompatibles
                         ]
-
                 elif weapon_type == "Submachine Gun":
                     if first_attachment in self.sights:
                         available_attachments = [
@@ -273,10 +305,8 @@ class RandomClass:
                     else:
                         available_attachments = [
                             att for att in possible_attachments
-                            if att != first_attachment
-                            and att not in first_incompatibles
+                            if att != first_attachment and att not in first_incompatibles
                         ]
-
                 elif weapon_type == "Light Machine Gun":
                     if first_attachment in self.sights:
                         available_attachments = [
@@ -288,10 +318,8 @@ class RandomClass:
                     else:
                         available_attachments = [
                             att for att in possible_attachments
-                            if att != first_attachment
-                            and att not in first_incompatibles
+                            if att != first_attachment and att not in first_incompatibles
                         ]
-
                 elif weapon_type == "Sniper Rifle":
                     if first_attachment in self.sights:
                         available_attachments = [
@@ -303,23 +331,17 @@ class RandomClass:
                     else:
                         available_attachments = [
                             att for att in possible_attachments
-                            if att != first_attachment
-                            and att not in first_incompatibles
+                            if att != first_attachment and att not in first_incompatibles
                         ]
                 else:
                     available_attachments = [
                         att for att in possible_attachments
-                        if att != first_attachment
-                        and att not in first_incompatibles
+                        if att != first_attachment and att not in first_incompatibles
                     ]
-
                 if not available_attachments:
                     attempts += 1
                     continue
-
                 second_attachment = choice(available_attachments)
-
-                # Überprüfe einige zusätzliche Regeln
                 if first_attachment in self.sights and second_attachment in self.sights:
                     attempts += 1
                     continue
@@ -331,38 +353,15 @@ class RandomClass:
                    (second_attachment == "Grenade Launcher" and first_attachment == "Shotgun"):
                     attempts += 1
                     continue
-
                 return f"{first_attachment} & {second_attachment}"
-
-            # Fallback
             return first_attachment
-
+    
         def select_single_attachment(attachment_dict):
             return choice(list(attachment_dict.keys()))
-
-        if weapon_type == "Assault Rifle":
-            weapon = choice(self.assault_rifle_weapons)
-            attachment_dict = self.assault_rifle_attachments
-        elif weapon_type == "Submachine Gun":
-            weapon = choice(self.mp_weapons)
-            attachment_dict = self.mg_attachments
-        elif weapon_type == "Light Machine Gun":
-            weapon = choice(self.lmg_weapons)
-            attachment_dict = self.lmg_attachments
-        elif weapon_type == "Sniper Rifle":
-            weapon = choice(self.sniper_weapons)
-            attachment_dict = self.sniper_attachments
-        else:
-            weapon = "Unknown Weapon"
-            attachment_dict = {}
-
-        # --- Waffe im globalen Zähler erfassen ---
-        if weapon != "Unknown Weapon":
-            selection_counts_global[weapon] += 1
-
+    
+        # Auswahl der Attachments – nur wenn es nicht Riot Shield ist (bereits abgefangen)
         if perk1 == "Bling":
             attachments = select_two_attachments_with_incompatibility(attachment_dict, weapon_type)
-            # Jedes Attachment im globalen Zähler erfassen
             for att in attachments.split(" & "):
                 selection_counts_global[att.strip()] += 1
             return f"{weapon} with {attachments}"
@@ -371,94 +370,119 @@ class RandomClass:
             selection_counts_global[attachment] += 1
             return f"{weapon} with {attachment}"
 
+
     # ----------------------------------------------------------------------------------
     # ------------------------------ RANDOM SECONDARY -----------------------------------
     # ----------------------------------------------------------------------------------
     def get_random_secondary(self, perk1) -> str:
+    # Flag für TMP (Machine Pistol)
+        is_TMP = False
 
         def select_two_attachments_secondary(attachment_dict):
             possible_attachments = [att for att in attachment_dict if att != "No Attachment"]
             if not possible_attachments:
+                print("[DEBUG] Keine möglichen Attachments gefunden.")
                 return "No Attachment"
-
             attempts = 0
             max_attempts = 100
-
             while attempts < max_attempts:
                 first_attachment = choice(possible_attachments)
                 first_incompatibles = self.incompatible_attachments.get(first_attachment, [])
-
                 available_attachments = [
                     att for att in possible_attachments
                     if att != first_attachment and att not in first_incompatibles
                 ]
-
                 if not available_attachments:
                     attempts += 1
                     continue
-
                 second_attachment = choice(available_attachments)
-
-                # Beispiel: keine Kombination von Sights und Akimbo
+                # Für TMP: keine Kombination aus zwei Sights zulassen
+                if is_TMP:
+                    if first_attachment in self.sights and second_attachment in self.sights:
+                        attempts += 1
+                        continue
+                # Allgemeine Regel: kein Sight + Akimbo
                 if (first_attachment in self.sights and second_attachment == "Akimbo") or \
                    (second_attachment in self.sights and first_attachment == "Akimbo"):
                     attempts += 1
                     continue
-
+                # Extra Regel für DESERT EAGLE mit Bling:
+                if weapon == "DESERT EAGLE" and perk1 == "Bling":
+                    allowed_sets = [set(["Akimbo", "FMJ"]), set(["FMJ", "Tactical Knife"])]
+                    if set([first_attachment, second_attachment]) not in allowed_sets:
+                        attempts += 1
+                        continue
+                print(f"[DEBUG] select_two_attachments_secondary: {first_attachment} & {second_attachment}")
                 return f"{first_attachment} & {second_attachment}"
-
+            print("[DEBUG] Fallback in select_two_attachments_secondary:", first_attachment)
             return first_attachment
 
         def select_single_attachment_secondary(attachment_dict):
-            return choice(list(attachment_dict.keys()))
+            att = choice(list(attachment_dict.keys()))
+            print(f"[DEBUG] select_single_attachment_secondary: {att}")
+            return att
 
         weapon_type = choice(["Pistol", "Machine Pistol", "Shotgun", "Launcher"])
 
         if weapon_type == "Pistol":
             weapon = choice(self.pistols_weapons)
             if weapon == "DESERT EAGLE":
-                attachment_dict = {
-                    "No Attachment": "None",
-                    "Akimbo": "Dual Wield",
-                    "Tactical Knife": "Melee",
-                    "Silencer": "Silencer",
-                    "FMJ": "Ammo",
-                }
+                # Für DESERT EAGLE: Bei perk1 == "Bling" werden nur Akimbo, Tactical Knife und FMJ zugelassen
+                if perk1 == "Bling":
+                    attachment_dict = {
+                        "No Attachment": "None",
+                        "Akimbo": "Dual Wield",
+                        "Tactical Knife": "Melee",
+                        "FMJ": "Ammo"
+                    }
+                else:
+                    attachment_dict = {
+                        "No Attachment": "None",
+                        "Akimbo": "Dual Wield",
+                        "Tactical Knife": "Melee",
+                        "Silencer": "Silencer",
+                        "FMJ": "Ammo"
+                    }
             elif weapon == ".44 MAGNUM":
                 attachment_dict = {
                     "Akimbo": "Dual Wield",
                     "Tactical Knife": "Melee",
-                    "FMJ": "Ammo",
+                    "FMJ": "Ammo"
                 }
             else:
                 attachment_dict = self.pistols_attachments
+
         elif weapon_type == "Machine Pistol":
             weapon = choice(self.auto_pistols_weapons)
             if weapon == "TMP":
+                is_TMP = True
+                # Für TMP mit perk1 "Bling" (oder generell, falls benötigt) – wir erlauben hier nur Sights, 
+                # damit später die Regel „keine 2 Sights“ greift.
                 attachment_dict = {
                     "Red Dot Sight": "Sight",
                     "Holographic Sight": "Sight",
-                    "Thermal": "Sight",
-                    "ACOG": "Sight",
+                    "ACOG Scope": "Sight"
                 }
             else:
                 attachment_dict = self.auto_pistols_attachments
+
         elif weapon_type == "Shotgun":
             weapon = choice(self.shotgun_weapons)
             if weapon in ["MODEL 1887", "RANGER"]:
                 attachment_dict = self.shotgun_attachments_akimbo
             else:
                 attachment_dict = self.shotgun_attachments
+
         elif weapon_type == "Launcher":
             weapon = choice(self.launchers_weapons)
-            # Launcher haben keine Aufsätze -> direkt global zählen + Rückgabe
             selection_counts_global[weapon] += 1
             return weapon
+
         else:
             weapon = "Unknown Weapon"
             attachment_dict = {}
 
-        # --- Sekundärwaffe im globalen Zähler erfassen ---
+        # Erfassung der gewählten Sekundärwaffe im globalen Zähler:
         if weapon != "Unknown Weapon":
             selection_counts_global[weapon] += 1
 
@@ -467,10 +491,12 @@ class RandomClass:
                 attachments = select_two_attachments_secondary(attachment_dict)
                 for att in attachments.split(" & "):
                     selection_counts_global[att.strip()] += 1
+                print(f"[DEBUG] get_random_secondary (Bling, two): {weapon} with {attachments}")
                 return f"{weapon} with {attachments}"
             else:
                 attachment = select_single_attachment_secondary(attachment_dict)
                 selection_counts_global[attachment] += 1
+                print(f"[DEBUG] get_random_secondary (normal): {weapon} with {attachment}")
                 return f"{weapon} with {attachment}"
         else:
             return weapon

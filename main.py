@@ -18,6 +18,7 @@ async def send_message(message: Message, user_message: str) -> None:
     try:
         # Hier übergeben wir zusätzlich message.author.id
         response = get_response(user_message, message.author.id)
+        print(message.author.id)
         
         # Prüfe, ob response ein Embed-Objekt oder ein String ist
         if isinstance(response, str):

@@ -2,14 +2,44 @@
 
 from discord import Embed
 import randomClass
+from scoringmodel import calculate_class_score, get_weapon_data, get_secondary_weapon_data, get_primary_category
 
-# Wir brauchen Zugriff auf randomClass.selection_counts_global
-# => import randomClass
-# => counts = randomClass.selection_counts_global
 
-# Globale Nutzerdaten existieren hier ggf. schon, 
-# falls du `user_class_data` hast (siehe altes Beispiel).
 user_class_data = {}
+
+
+
+def check_special_perks(user_id: int) -> str:
+    """
+    Prüft anhand der in user_class_data gespeicherten Perks (Perk1, Perk2, Perk3)
+    für den gegebenen user_id, ob mindestens zwei der folgenden Bedingungen erfüllt sind:
+      - Perk 1: "Marathon" oder "Sleight of Hand"
+      - Perk 2: enthält "Stopping" (z.B. "Stopping Power")
+      - Perk 3: "Ninja"
+    Wenn ja, wird ein extra Text zurückgegeben.
+    """
+    # Existiert noch keine Zufallsklasse für diesen User, gibt es auch nichts zu prüfen.
+    if user_id not in user_class_data:
+        return ""
+    
+    data = user_class_data[user_id]
+    special_count = 0
+    if(user_id == user_id):
+       
+        if data.get("perk1") in ["Marathon", "Sleight of Hand"]:
+            special_count += 1
+        
+        if data.get("perk2") == "Stopping Power":
+            special_count += 1
+
+        # Prüfe Perk 3
+        if data.get("perk3") == "Ninja":
+            special_count += 1
+        print("special_count:", special_count)
+        if special_count >= 2:
+            return " 🌡️ Potenielle OP Klasse! 🌡️ "
+        else:
+            return ""
 
 def get_response(user_input: str, user_id: int):
     if user_input in ["?random", "?zufall", "?"]:
@@ -34,7 +64,7 @@ def get_response(user_input: str, user_id: int):
         else:
             return "Unbekannter Parameter. Benutze `?change primary` oder `?change secondary`."
 
-    return "I am not sure what you are asking for. Try `?random` or `?map`. Du Hurensohn."
+    return "Du alter HUNDESOOOOOOOOOOHN schreib doch einfach `?` oder `?zufall`."
 
 def create_and_store_random_embed(user_id: int) -> Embed:
     r = randomClass.RandomClass()
@@ -57,11 +87,14 @@ def create_and_store_random_embed(user_id: int) -> Embed:
     }
     user_class_data[user_id] = class_data
 
-    return create_random_embed_from_data(class_data)
+    return create_random_embed_from_data(class_data, user_id)
 
-def create_random_embed_from_data(class_data: dict) -> Embed:
+def create_random_embed_from_data(class_data: dict, user_id: int) -> Embed:
     primary_text = class_data["primary"].replace('&', '\n&').replace('with', '\nwith')
     secondary_text = class_data["secondary"].replace('&', '\n&').replace('with', '\nwith')
+
+    # Berechne den Score
+    total_score = calculate_class_score(class_data)
 
     embed = Embed(title='Zufällige Ausrüstung', color=0x3498db)
     embed.add_field(name='Primary', value=f'||{primary_text}||', inline=True)
@@ -76,6 +109,14 @@ def create_random_embed_from_data(class_data: dict) -> Embed:
     embed.add_field(name='Perk 2', value=class_data["perk2"], inline=True)
     embed.add_field(name='Perk 3', value=class_data["perk3"], inline=True)
 
+ 
+
+     # Füge ein zusätzliches Feld für den Score hinzu
+    embed.add_field(name='Klassen-Score', value=str(total_score), inline=False)
+
+    if(total_score > 22):
+        embed.add_field(name='OP Klasse!', value='🌡️', inline=False)    
+
     return embed
 
 def change_primary_embed(user_id: int):
@@ -88,7 +129,7 @@ def change_primary_embed(user_id: int):
     new_primary = r.get_random_primary(perk1)
     class_data["primary"] = new_primary
     user_class_data[user_id] = class_data
-    return create_random_embed_from_data(class_data)
+    return create_random_embed_from_data(class_data, user_id)
 
 def change_secondary_embed(user_id: int):
     if user_id not in user_class_data:
@@ -100,7 +141,7 @@ def change_secondary_embed(user_id: int):
     new_secondary = r.get_random_secondary(perk1)
     class_data["secondary"] = new_secondary
     user_class_data[user_id] = class_data
-    return create_random_embed_from_data(class_data)
+    return create_random_embed_from_data(class_data, user_id)
 
 def create_map_embed() -> Embed:
     r = randomClass.RandomClass()
@@ -114,8 +155,8 @@ def create_map_embed() -> Embed:
     embed.add_field(name='Team Damage', value=f'||{team}||', inline=True)
     return embed
 
-from discord import Embed
-import randomClass
+
+
 
 def create_stats_embed():
     """
