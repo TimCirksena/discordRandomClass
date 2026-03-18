@@ -1,7 +1,7 @@
 # ----- Primärwaffen: Assault Rifles (AR) -----
 ar_data = {
     "M4A1": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 0,
@@ -16,7 +16,7 @@ ar_data = {
         }
     },
     "FAMAS": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 1,
@@ -31,7 +31,7 @@ ar_data = {
         }
     },
     "SCAR-H": {
-        "base": 10,
+        "base": 25,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 0,
@@ -46,7 +46,7 @@ ar_data = {
         }
     },
     "TAR-21": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 0,
@@ -61,7 +61,7 @@ ar_data = {
         }
     },
     "FAL": {
-        "base": 6,
+        "base": 14,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 1,
@@ -76,7 +76,7 @@ ar_data = {
         }
     },
     "M16A4": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 1,
@@ -91,7 +91,7 @@ ar_data = {
         }
     },
     "ACR": {
-        "base": 10,
+        "base": 25,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 0,
@@ -106,7 +106,7 @@ ar_data = {
         }
     },
     "F2000": {
-        "base": 5,
+        "base": 12,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": -1,
@@ -121,7 +121,7 @@ ar_data = {
         }
     },
     "AK-47": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Grenade Launcher": 2,
             "Red Dot Sight": 1,
@@ -140,7 +140,7 @@ ar_data = {
 # ----- Primärwaffen: SMGs (als MGs) -----
 smg_data = {
     "MP5K": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Rapid Fire": -2,
             "Red Dot Sight": 0,
@@ -154,7 +154,7 @@ smg_data = {
         }
     },
     "UMP45": {
-        "base": 9,
+        "base": 22,
         "attachments": {
             "Rapid Fire": -1,
             "Red Dot Sight": 0,
@@ -168,7 +168,7 @@ smg_data = {
         }
     },
     "Vector": {
-        "base": 6,
+        "base": 14,
         "attachments": {
             "Rapid Fire": -1,
             "Red Dot Sight": 0,
@@ -182,7 +182,7 @@ smg_data = {
         }
     },
     "P90": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Rapid Fire": -1,
             "Red Dot Sight": 0,
@@ -196,7 +196,7 @@ smg_data = {
         }
     },
     "Mini-Uzi": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Rapid Fire": -1,
             "Red Dot Sight": 0,
@@ -214,7 +214,7 @@ smg_data = {
 # ----- Primärwaffen: LMGs -----
 lmg_data = {
     "L86 LSW": {
-        "base": 6,
+        "base": 14,
         "attachments": {
             "Grip": 2,
             "Red Dot Sight": 1,
@@ -228,7 +228,7 @@ lmg_data = {
         }
     },
     "RPD": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Grip": 2,
             "Red Dot Sight": 0,
@@ -242,7 +242,7 @@ lmg_data = {
         }
     },
     "MG4": {
-        "base": 5,
+        "base": 12,
         "attachments": {
             "Grip": 2,
             "Red Dot Sight": 1,
@@ -256,7 +256,7 @@ lmg_data = {
         }
     },
     "AUG HBAR": {
-        "base": 8,
+        "base": 20,
         "attachments": {
             "Grip": 2,
             "Red Dot Sight": 0,
@@ -270,7 +270,7 @@ lmg_data = {
         }
     },
     "M240": {
-        "base": 5,
+        "base": 12,
         "attachments": {
             "Grip": 2,
             "Red Dot Sight": 1,
@@ -288,7 +288,7 @@ lmg_data = {
 # ----- Primärwaffen: Sniper -----
 sniper_data = {
     "Intervention": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Silencer": -2,
             "ACOG Scope": -3,
@@ -299,7 +299,7 @@ sniper_data = {
         }
     },
     "Barrett .50cal": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Silencer": -2,
             "ACOG Scope": -3,
@@ -310,7 +310,7 @@ sniper_data = {
         }
     },
     "WA2000": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Silencer": 1,
             "ACOG Scope": -3,
@@ -321,7 +321,7 @@ sniper_data = {
         }
     },
     "M21 EBR": {
-        "base": 7,
+        "base": 17,
         "attachments": {
             "Silencer": 1,
             "ACOG Scope": -3,
@@ -344,7 +344,7 @@ riot_shield_data = {
 # ----- Sekundärwaffen: Pistols -----
 pistol_secondary_data = {
     "USP .45": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "FMJ": 2,
             "Silencer": 1,
@@ -354,7 +354,7 @@ pistol_secondary_data = {
         }
     },
     ".44 MAGNUM": {
-        "base": 4,
+        "base": 9,
         "attachments": {
             "FMJ": 2,
             "Akimbo": 3,
@@ -362,7 +362,7 @@ pistol_secondary_data = {
         }
     },
     "M9": {
-        "base": 4,
+        "base": 9,
         "attachments": {
             "FMJ": 2,
             "Silencer": 1,
@@ -372,7 +372,7 @@ pistol_secondary_data = {
         }
     },
     "DESERT EAGLE": {
-        "base": 2,
+        "base": 4,
         "attachments": {
             "FMJ": 2,
             "Akimbo": 2,
@@ -385,7 +385,7 @@ pistol_secondary_data = {
 # ----- Sekundärwaffen: MPs -----
 mp_secondary_data = {
     "PP2000": {
-        "base": 4,
+        "base": 9,
         "attachments": {
             "Red Dot Sight": 1,
             "Silencer": 1,
@@ -396,7 +396,7 @@ mp_secondary_data = {
         }
     },
     "G18": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Red Dot Sight": 1,
             "Silencer": 1,
@@ -407,7 +407,7 @@ mp_secondary_data = {
         }
     },
     "M93 Raffica": {
-        "base": 4,
+        "base": 9,
         "attachments": {
             "Red Dot Sight": 1,
             "Silencer": 1,
@@ -418,7 +418,7 @@ mp_secondary_data = {
         }
     },
     "TMP": {
-        "base": 5,
+        "base": 12,
         "attachments": {
             "Red Dot Sight": 1,
             "Silencer": 1,
@@ -426,7 +426,6 @@ mp_secondary_data = {
             "Akimbo": -2,
             "Holographic Sight": 0,
             "Extended Mags": 1,
-            "Thermal Scope": -2  # Falls gewünscht, kannst du hier auch anpassen
         }
     }
 }
@@ -434,7 +433,7 @@ mp_secondary_data = {
 # ----- Sekundärwaffen: Shotguns -----
 shotgun_secondary_data = {
     "SPAS-12": {
-        "base": 5,
+        "base": 12,
         "attachments": {
             "Red Dot Sight": 0,
             "Silencer": 0,
@@ -445,7 +444,7 @@ shotgun_secondary_data = {
         }
     },
     "AA-12": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Red Dot Sight": 0,
             "Silencer": -1,
@@ -456,7 +455,7 @@ shotgun_secondary_data = {
         }
     },
     "STRIKER": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Red Dot Sight": 0,
             "Silencer": -1,
@@ -467,14 +466,14 @@ shotgun_secondary_data = {
         }
     },
     "RANGER": {
-        "base": 2,
+        "base": 4,
         "attachments": {
             "Akimbo": 2,
             "FMJ": 1
         }  # Keine oder wenig Attachments
     },
     "M1014": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Red Dot Sight": 0,
             "Silencer": -1,
@@ -485,7 +484,7 @@ shotgun_secondary_data = {
         }
     },
     "MODEL 1887": {
-        "base": 3,
+        "base": 6,
         "attachments": {
             "Akimbo": 2,
             "FMJ": 1
@@ -496,11 +495,11 @@ shotgun_secondary_data = {
 # ----- Sekundärwaffen: Launcher -----
 launcher_secondary_data = {
     "AT4-HS": {
-        "base": 2,
+        "base": 4,
         "attachments": {}
     },
     "THUMPER": {
-        "base": 3,
+        "base": 6,
         "attachments": {}
     },
     "STINGER": {
@@ -512,7 +511,7 @@ launcher_secondary_data = {
         "attachments": {}
     },
     "RPG-7": {
-        "base": 2,
+        "base": 4,
         "attachments": {}
     }
 }
@@ -665,7 +664,7 @@ def get_primary_category(weapon_name: str) -> str:
         return "Riot Shield"
     else:
         return "Unknown"
-    
+
 
     # ----- Score-Berechnung -----
 def calculate_class_score(class_data: dict) -> int:
@@ -692,7 +691,7 @@ def calculate_class_score(class_data: dict) -> int:
                 print(f"DEBUG: Attachment: {att} Score: {att_score}")
         else:
             print(f"DEBUG: Keine Daten für Primärwaffe: {weapon_name}")
-    
+
     # ----- Sekundärwaffe auswerten -----
     secondary_text = class_data.get("secondary", "")
     if secondary_text:
@@ -713,19 +712,19 @@ def calculate_class_score(class_data: dict) -> int:
                 print(f"DEBUG: Sekundär Attachment: {att} Score: {sec_att_score}")
         else:
             print(f"DEBUG: Keine Daten für Sekundärwaffe: {sec_weapon}")
-    
+
     # ----- Equipment auswerten -----
     equipment = class_data.get("equipment", "")
     eq_score = equipment_scores.get(equipment, 0)
     total_score += eq_score
     print(f"DEBUG: Equipment: {equipment} Score: {eq_score}")
-    
+
     # ----- Special Grenade auswerten -----
     special_grenade = class_data.get("special_grenade", "")
     grenade_score = special_grenade_scores.get(special_grenade, 0)
     total_score += grenade_score
     print(f"DEBUG: Special Grenade: {special_grenade} Score: {grenade_score}")
-    
+
     # ----- Perks auswerten -----
     # Zuerst ermitteln, zu welcher Kategorie die primäre Waffe gehört:
     if primary_text:
@@ -757,6 +756,70 @@ def calculate_class_score(class_data: dict) -> int:
         perk_score = perk_dict.get(p, 0)
         total_score += perk_score
         print(f"DEBUG: {perk_key}: {p} Score: {perk_score}")
-    
+
     print(f"DEBUG: Gesamter Score: {total_score}")
     return total_score
+
+
+def get_score_breakdown(class_data: dict) -> dict:
+    """Returns a dict with individual score components for display."""
+    breakdown = {}
+
+    # Primary
+    primary_text = class_data.get("primary", "")
+    primary_score = 0
+    if primary_text:
+        if " with " in primary_text:
+            weapon_name, att_text = primary_text.split(" with ", 1)
+            atts = [a.strip() for a in att_text.split(" & ")]
+        else:
+            weapon_name = primary_text.strip()
+            atts = []
+        info = get_weapon_data(weapon_name)
+        if info:
+            primary_score = info.get("base", 0)
+            for a in atts:
+                primary_score += info.get("attachments", {}).get(a, 0)
+    breakdown["primary"] = primary_score
+
+    # Secondary
+    secondary_text = class_data.get("secondary", "")
+    secondary_score = 0
+    if secondary_text:
+        if " with " in secondary_text:
+            sec_name, sec_att_text = secondary_text.split(" with ", 1)
+            sec_atts = [a.strip() for a in sec_att_text.split(" & ")]
+        else:
+            sec_name = secondary_text.strip()
+            sec_atts = []
+        sec_info = get_secondary_weapon_data(sec_name)
+        if sec_info:
+            secondary_score = sec_info.get("base", 0)
+            for a in sec_atts:
+                secondary_score += sec_info.get("attachments", {}).get(a, 0)
+    breakdown["secondary"] = secondary_score
+
+    # Equipment
+    breakdown["equipment"] = equipment_scores.get(class_data.get("equipment", ""), 0)
+
+    # Special Grenade
+    breakdown["special_grenade"] = special_grenade_scores.get(class_data.get("special_grenade", ""), 0)
+
+    # Perks
+    if primary_text:
+        wn = primary_text.split(" with ")[0].strip() if " with " in primary_text else primary_text.strip()
+        category = get_primary_category(wn)
+    else:
+        category = "Unknown"
+
+    perk_dicts = {
+        "AR": ar_perk_modifiers, "SMG": smg_perk_modifiers,
+        "LMG": lmg_perk_modifiers, "Sniper": sniper_perk_modifiers,
+        "Riot Shield": riot_shield_perk_modifiers,
+    }
+    pd = perk_dicts.get(category, {})
+    breakdown["perk1"] = pd.get(class_data.get("perk1", ""), 0)
+    breakdown["perk2"] = pd.get(class_data.get("perk2", ""), 0)
+    breakdown["perk3"] = pd.get(class_data.get("perk3", ""), 0)
+
+    return breakdown

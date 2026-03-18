@@ -206,15 +206,23 @@ class RandomClass:
     # ----------------------------------------------------------------------------------
     # ------------------------------ RANDOM PRIMARY -------------------------------------
     # ----------------------------------------------------------------------------------
-    def get_random_primary(self, perk1) -> str:
-        # Alle Primärwaffen in einem Array zusammenführen
-        merged_primary = (
-            self.assault_rifle_weapons +
-            self.mp_weapons +
-            self.lmg_weapons +
-            self.sniper_weapons +
-            self.riot_shield
-        )
+    def get_random_primary(self, perk1, excluded_categories=None) -> str:
+        # Alle Primärwaffen in einem Array zusammenführen (mit optionalen Ausschlüssen)
+        excluded_categories = excluded_categories or []
+        category_map = {
+            "ar": self.assault_rifle_weapons,
+            "smg": self.mp_weapons,
+            "lmg": self.lmg_weapons,
+            "sniper": self.sniper_weapons,
+            "riot_shield": self.riot_shield,
+        }
+        merged_primary = []
+        for key, weapons in category_map.items():
+            if key not in excluded_categories:
+                merged_primary += weapons
+
+        if not merged_primary:
+            return "Riot Shield"  # Fallback
         # Zufälliges Element aus dem gemergten Array auswählen
         weapon = choice(merged_primary)
     
@@ -456,12 +464,14 @@ class RandomClass:
             weapon = choice(self.auto_pistols_weapons)
             if weapon == "TMP":
                 is_TMP = True
-                # Für TMP mit perk1 "Bling" (oder generell, falls benötigt) – wir erlauben hier nur Sights, 
-                # damit später die Regel „keine 2 Sights“ greift.
                 attachment_dict = {
+                    "No Attachment": "None",
                     "Red Dot Sight": "Sight",
+                    "Silencer": "Silencer",
+                    "FMJ": "Ammo",
+                    "Akimbo": "Dual Wield",
                     "Holographic Sight": "Sight",
-                    "ACOG Scope": "Sight"
+                    "Extended Mags": "Ammo",
                 }
             else:
                 attachment_dict = self.auto_pistols_attachments
@@ -532,8 +542,11 @@ class RandomClass:
     # ----------------------------------------------------------------------------------
     # -------------------------------- RANDOM MAP ---------------------------------------
     # ----------------------------------------------------------------------------------
-    def get_random_map(self) -> str:
-        m = choice(self.maps)
+    def get_random_map(self, available_maps=None) -> str:
+        pool = available_maps if available_maps else self.maps
+        if not pool:
+            return None
+        m = choice(pool)
         selection_counts_global[m] += 1
         return m
 
