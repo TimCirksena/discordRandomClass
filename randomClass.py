@@ -130,7 +130,7 @@ class RandomClass:
         self.incompatible_attachments = {
             "Holographic Sight": ["Akimbo", "Red Dot Sight", "ACOG Scope", "Thermal Scope"],
             "Red Dot Sight": ["Holographic Sight", "ACOG Scope", "Thermal Scope"],
-            "Akimbo": ["Holographic Sight", "Red Dot Sight"],
+            "Akimbo": ["Holographic Sight", "Red Dot Sight", "Tactical Knife"],
             "Tactical Knife": ["Akimbo"],
             # Weitere Inkompatibilitäten können hier hinzugefügt werden
         }

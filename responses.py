@@ -153,7 +153,7 @@ def get_score_tier(total_score):
         }
 
 
-def create_score_bar(score, max_score=50):
+def create_score_bar(score, max_score=61):
     """Creates a visual score bar for Discord."""
     ratio = max(0, min(1, score / max_score))
     filled = round(ratio * 10)
@@ -295,7 +295,7 @@ def create_reveal_embed(class_data, step, total_score=None, user_id=None):
 
         embed.add_field(
             name=L["score"],
-            value=f'**{total_score}** / 50\n{score_bar}\n`{breakdown_line}`',
+            value=f'**{total_score}** / 61\n{score_bar}\n`{breakdown_line}`',
             inline=False
         )
         tier = get_score_tier(total_score)
@@ -411,7 +411,7 @@ def create_random_embed_from_data(class_data: dict, user_id: int) -> Embed:
         f"🟨 {_sign(bd['perk3'])}"
     )
 
-    embed.add_field(name=L["score"], value=f'**{total_score}** / 50\n{score_bar}\n`{breakdown_line}`', inline=False)
+    embed.add_field(name=L["score"], value=f'**{total_score}** / 61\n{score_bar}\n`{breakdown_line}`', inline=False)
 
     if tier.get("footer"):
         embed.set_footer(text=tier["footer"])

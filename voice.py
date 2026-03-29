@@ -1,43 +1,55 @@
 import discord
-from discord.ext import commands
+import edge_tts
 import asyncio
+import os
+import tempfile
 
-intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Deutsche Stimme (weiblich). Alternativen: "de-DE-ConradNeural" (männlich)
+TTS_VOICE = "de-DE-KatjaNeural"
 
-@bot.event
-async def on_ready():
-    print(f"Bot {bot.user} ist online!")
 
-@bot.command(name="playmp3")
-async def play_mp3(ctx):
-    # 1. Prüfen, ob der Benutzer in einem Voice-Channel ist
-    if not ctx.author.voice or not ctx.author.voice.channel:
-        await ctx.send("Du bist nicht in einem Voice-Kanal!")
+async def speak_in_channel(guild: discord.Guild, user: discord.Member, text: str):
+    """Generiert TTS-Audio mit edge-tts, joint den Voice-Channel des Users und spielt es ab."""
+    if not user.voice or not user.voice.channel:
         return
 
-    channel = ctx.author.voice.channel
+    channel = user.voice.channel
 
-    # 2. Bot dem Kanal joinen lassen
-    voice_client = ctx.voice_client
-    if voice_client is None or not voice_client.is_connected():
-        # Falls der Bot nicht schon im VoiceChannel ist
-        voice_client = await channel.connect()
-    else:
-        # Falls der Bot noch in einem anderen Channel hängt:
-        if voice_client.channel != channel:
+    # TTS-Audio generieren
+    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    tmp.close()
+    try:
+        communicate = edge_tts.Communicate(text, TTS_VOICE)
+        await communicate.save(tmp.name)
+
+        # Voice-Channel joinen
+        voice_client = guild.voice_client
+        if voice_client is None or not voice_client.is_connected():
+            voice_client = await channel.connect(timeout=10.0, self_deaf=True)
+        elif voice_client.channel != channel:
             await voice_client.move_to(channel)
 
-    # 3. Audio abspielen (z.B. MP3 namens "example.mp3")
-    source = discord.FFmpegPCMAudio("example.mp3")
-    voice_client.play(source)
+        # Audio abspielen und warten
+        finished = asyncio.Event()
+        voice_client.play(
+            discord.FFmpegPCMAudio(tmp.name),
+            after=lambda e: finished.set(),
+        )
+        await finished.wait()
 
-    # 4. Warten, bis das Audio fertig gespielt ist
-    while voice_client.is_playing():
-        await asyncio.sleep(1)
-
-    # 5. Nach Ende wieder leaven (optional)
-    await voice_client.disconnect()
-
-# Bot starten
-bot.run("DEIN_DISCORD_TOKEN")
+        # Disconnect nach dem Abspielen
+        await voice_client.disconnect()
+    except Exception as e:
+        print(f"[Voice TTS] Fehler: {e}")
+        # Falls der Bot im Voice hängt, trotzdem disconnecten
+        if guild.voice_client:
+            try:
+                await guild.voice_client.disconnect(force=True)
+            except Exception:
+                pass
+    finally:
+        # Temp-Datei aufräumen
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass

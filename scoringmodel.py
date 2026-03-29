@@ -10,7 +10,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": -1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -25,7 +25,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -40,7 +40,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": -1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -55,7 +55,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": -1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -70,7 +70,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -85,7 +85,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -100,7 +100,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": -1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -115,7 +115,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -130,7 +130,7 @@ ar_data = {
             "FMJ": 2,
             "Shotgun": 0,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -222,7 +222,7 @@ lmg_data = {
             "ACOG Scope": -3,
             "FMJ": 2,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -236,7 +236,7 @@ lmg_data = {
             "ACOG Scope": -3,
             "FMJ": 2,
             "Holographic Sight": 0,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 0
         }
@@ -250,7 +250,7 @@ lmg_data = {
             "ACOG Scope": -3,
             "FMJ": 2,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 0
         }
@@ -264,7 +264,7 @@ lmg_data = {
             "ACOG Scope": -3,
             "FMJ": 2,
             "Holographic Sight": 0,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 1
         }
@@ -278,7 +278,7 @@ lmg_data = {
             "ACOG Scope": -3,
             "FMJ": 2,
             "Holographic Sight": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -2,
             "Extended Mags": 0
         }
@@ -293,7 +293,7 @@ sniper_data = {
             "Silencer": -2,
             "ACOG Scope": -3,
             "FMJ": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -1,
             "Extended Mags": 1
         }
@@ -304,7 +304,7 @@ sniper_data = {
             "Silencer": -2,
             "ACOG Scope": -3,
             "FMJ": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -1,
             "Extended Mags": 1
         }
@@ -315,7 +315,7 @@ sniper_data = {
             "Silencer": 1,
             "ACOG Scope": -3,
             "FMJ": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -1,
             "Extended Mags": 1
         }
@@ -326,7 +326,7 @@ sniper_data = {
             "Silencer": 1,
             "ACOG Scope": -3,
             "FMJ": 1,
-            "Heartbeat Sensor": 3,
+            "Heartbeat Sensor": 5,
             "Thermal Scope": -1,
             "Extended Mags": 1
         }
@@ -349,7 +349,7 @@ pistol_secondary_data = {
             "FMJ": 2,
             "Silencer": 1,
             "Akimbo": 1,
-            "Tac-Knife": -1,
+            "Tactical Knife": -1,
             "Extended Mags": 0
         }
     },
@@ -358,7 +358,7 @@ pistol_secondary_data = {
         "attachments": {
             "FMJ": 2,
             "Akimbo": 3,
-            "Tac-Knife": 0,
+            "Tactical Knife": 0,
         }
     },
     "M9": {
@@ -367,7 +367,7 @@ pistol_secondary_data = {
             "FMJ": 2,
             "Silencer": 1,
             "Akimbo": 1,
-            "Tac-Knife": -1,
+            "Tactical Knife": -1,
             "Extended Mags": 0
         }
     },
@@ -376,7 +376,7 @@ pistol_secondary_data = {
         "attachments": {
             "FMJ": 2,
             "Akimbo": 2,
-            "Tac-Knife": 0,
+            "Tactical Knife": 0,
             "Extended Mags": 0
         }
     },
@@ -523,7 +523,7 @@ ar_perk_modifiers = {
     "Sleight of Hand": 3,
     "Scavenger": 1,
     "Bling": 0,
-    "Stopping Power": 3,
+    "Stopping Power": 5,
     "Lightweight": 1,
     "Hardline": 1,
     "Cold-Blooded": 1,
@@ -541,7 +541,7 @@ smg_perk_modifiers = {
     "Sleight of Hand": 2,
     "Scavenger": 1,
     "Bling": 0,
-    "Stopping Power": 3,
+    "Stopping Power": 5,
     "Lightweight": 2,
     "Hardline": 1,
     "Cold-Blooded": 1,
@@ -559,7 +559,7 @@ lmg_perk_modifiers = {
     "Sleight of Hand": 3,
     "Scavenger": 1,
     "Bling": 0,
-    "Stopping Power": 3,
+    "Stopping Power": 5,
     "Lightweight": 2,
     "Hardline": 1,
     "Cold-Blooded": 1,
@@ -577,7 +577,7 @@ sniper_perk_modifiers = {
     "Sleight of Hand": 3,
     "Scavenger": 1,
     "Bling": 0,
-    "Stopping Power": 5,   # Höherer Bonus für Sniper
+    "Stopping Power": 7,   # Höherer Bonus für Sniper
     "Lightweight": 1,
     "Hardline": 1,
     "Cold-Blooded": 1,

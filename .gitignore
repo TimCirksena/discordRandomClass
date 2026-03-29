@@ -163,3 +163,4 @@ cython_debug/
 stats/
 player_stats.json
 Afghan.webp
+ffmpeg.exe

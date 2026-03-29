@@ -10,6 +10,7 @@ from responses import (
     change_primary_embed, change_secondary_embed, create_player_stats_embed
 )
 from playerstats import record_roll, reset_session
+from voice import speak_in_channel
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
@@ -22,6 +23,7 @@ FILTER_IDS: Final[set] = {
 
 intents: Intents = Intents.default()
 intents.message_content = True
+intents.voice_states = True
 client: Client = Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
@@ -45,8 +47,8 @@ MAPS_DIR = os.path.join(os.path.dirname(__file__), "maps")
 
 @tree.command(name="filter", description="[Admin] Setze Filter fuer alle /random Rolls")
 @app_commands.describe(
-    min_score="Minimaler Klassen-Score (0-50, z.B. 18)",
-    max_score="Maximaler Klassen-Score (0-50, z.B. 35)",
+    min_score="Minimaler Klassen-Score (0-61, z.B. 18)",
+    max_score="Maximaler Klassen-Score (0-61, z.B. 35)",
     no_ar="Assault Rifles ausschließen",
     no_smg="SMGs ausschließen",
     no_lmg="LMGs ausschließen",
@@ -175,28 +177,28 @@ async def random_class(interaction: discord.Interaction):
     # Step 4: Finales Embed mit Score + Tier-Farbe
     await interaction.edit_original_response(embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id))
 
-    # Bonus-Effekte je nach Tier (als Channel-Nachricht mit TTS)
-    if total_score > 40:
+    # Bonus-Effekte je nach Tier (Channel-Nachricht + Voice-TTS)
+    if total_score > 45:
         await asyncio.sleep(0.5)
-        await interaction.channel.send(
-            f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen! Score {total_score} von 50!",
-            tts=True
-        )
         await interaction.channel.send(
             f"# \u26a1\U0001f525 LEGENDARY DROP! \U0001f525\u26a1\n"
             f">>> {interaction.user.mention} hat eine **OVERPOWERED** Klasse gezogen!\n"
-            f"Score: **{total_score}** / 50 \U0001f608"
+            f"Score: **{total_score}** / 61 \U0001f608"
+        )
+        await speak_in_channel(
+            interaction.guild, interaction.user,
+            f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
         )
     elif total_score < 18:
         await asyncio.sleep(0.5)
         await interaction.channel.send(
-            f"{interaction.user.display_name} hat eine MÜLL KLASSE gezogen! Score {total_score} von 50!",
-            tts=True
-        )
-        await interaction.channel.send(
             f"# \U0001f480 Trash Tier... \U0001f480\n"
-            f">>> {interaction.user.mention} hat eine **MÜLL-KLASSE** gezogen!\n"
-            f"Score: **{total_score}** / 50 \U0001f5d1\ufe0f"
+            f">>> {interaction.user.mention} hat eine **MÜLL-KLASSE** gezogen, der huso!\n"
+            f"Score: **{total_score}** / 61 \U0001f5d1\ufe0f"
+        )
+        await speak_in_channel(
+            interaction.guild, interaction.user,
+            f"{interaction.user.display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
         )
 
 
@@ -227,9 +229,9 @@ async def random_map(interaction: discord.Interaction):
     embed.set_footer(text=f"Noch {remaining}/{len(_all_maps)} Maps verfuegbar")
 
     if file:
-        await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+        await interaction.response.send_message(embed=embed, file=file, ephemeral=False)
     else:
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
 
 @tree.command(name="stats", description="Zeige Statistiken der gerollten Items")
@@ -262,6 +264,16 @@ async def change(interaction: discord.Interaction, what: app_commands.Choice[str
         await interaction.response.send_message(embed=result, ephemeral=True)
 
 
+@tree.command(name="tts", description="Teste die Voice-TTS Ansage")
+@app_commands.describe(text="Text der vorgelesen werden soll")
+async def tts_test(interaction: discord.Interaction, text: str = "Das ist ein Test der Sprachausgabe!"):
+    if not interaction.user.voice or not interaction.user.voice.channel:
+        await interaction.response.send_message("Du musst in einem Voice-Channel sein!", ephemeral=True)
+        return
+    await interaction.response.send_message(f"Sage: *{text}*", ephemeral=True)
+    await speak_in_channel(interaction.guild, interaction.user, text)
+
+
 # ==================== EVENTS ====================
 
 @client.event
@@ -281,6 +293,13 @@ async def on_message(message: Message) -> None:
         await message.channel.send(
             f"{message.author.mention} Benutze jetzt Slash-Commands! "
             "Tippe `/random`, `/map`, `/stats` oder `/change`."
+        )
+        return
+
+    # Auf alle anderen Nachrichten reagieren
+    if message.content and not message.content.startswith("/"):
+        await message.channel.send(
+            f"{message.author.mention} Halt die Fresse und benutz `/random` du Hund."
         )
 
 
