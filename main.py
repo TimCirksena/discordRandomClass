@@ -292,14 +292,14 @@ async def on_message(message: Message) -> None:
     if message.content in ["?random", "?zufall", "?", "?map", "?stats"] or message.content.startswith("?change"):
         await message.channel.send(
             f"{message.author.mention} Benutze jetzt Slash-Commands! "
-            "Tippe `/random`, `/map`, `/stats` oder `/change`."
+            "Tippe `/random`, `/map`, `/stats` oder `/change`. du hond."
         )
         return
 
     # Auf alle anderen Nachrichten reagieren
     if message.content and not message.content.startswith("/"):
         await message.channel.send(
-            f"{message.author.mention} Halt die Fresse und benutz `/random` du Hund."
+            f"{message.author.mention} Halt die Fresse und benutz `/`-Commands, du Hund."
         )
 
 
