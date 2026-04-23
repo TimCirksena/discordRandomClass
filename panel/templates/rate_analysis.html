@@ -41,6 +41,7 @@
           <th class="num">Aktuell</th>
           <th class="num">Empfohlen</th>
           <th class="num">Diff</th>
+          <th title="Was die Community empfiehlt">Tendenz</th>
           <th class="num" title="0-5, abgeleitet aus Stichprobengröße">Konf.</th>
           <th class="num" title="Standardabweichung der Deltas - niedrig = alle einig">σ</th>
           <th class="num" title="Wie viele History-Rolls enthalten diese Komponente">Rolls</th>
@@ -60,6 +61,17 @@
           </td>
           <td class="num {% if row.diff and row.diff > 0 %}pos{% elif row.diff and row.diff < 0 %}neg{% endif %}">
             {% if row.diff is not none and row.diff != 0 %}{{ '{:+d}'.format(row.diff) }}{% elif row.diff == 0 %}0{% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td>
+            {% if row.diff is not none and row.diff > 0 %}
+              <span class="tendenz up">&uarr; Score rauf</span>
+            {% elif row.diff is not none and row.diff < 0 %}
+              <span class="tendenz down">&darr; Score runter</span>
+            {% elif row.diff == 0 %}
+              <span class="tendenz flat">= passt</span>
+            {% else %}
+              <span class="muted small">—</span>
+            {% endif %}
           </td>
           <td class="num">
             <span class="conf-bar" title="Konfidenz {{ row.confidence }}">
