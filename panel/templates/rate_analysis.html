@@ -7,13 +7,12 @@
     <div>
       <h1>Rating-Analyse</h1>
       <p>
-        Aggregation aller Bewertungen. Pro User+Klasse zählt die letzte Bewertung.
-        <strong>{{ total_ratings }}</strong> Datensätze insgesamt.
+        <strong>{{ total_ratings }}</strong> Datensätze insgesamt. Pro User+Klasse zählt die letzte Bewertung.
       </p>
     </div>
     <div class="rate-filters">
       {% if show_all %}
-      <a href="{{ url_for('rate_analysis') }}" role="button" class="secondary">Nur ≥{{ 3 }} Ratings zeigen</a>
+      <a href="{{ url_for('rate_analysis') }}" role="button" class="secondary">Nur ≥{{ min_samples }} Ratings</a>
       {% else %}
       <a href="{{ url_for('rate_analysis', all='1') }}" role="button" class="secondary">Alle zeigen</a>
       {% endif %}
@@ -23,55 +22,69 @@
 
 <article>
   <header><strong>Komponenten-Empfehlungen</strong></header>
-  <p class="muted small">
-    Sortiert nach Anpassungs-Priorität (|Ø Δ| × Konfidenz). Slider-Bewertungen zählen doppelt gegenüber Quick-Buttons.
-    Empfohlene Werte basieren auf naiver Mittelung — bei niedriger Konfidenz oder hohem σ (Streit) vorsichtig anwenden.
-    <strong>Aktueller Wert</strong> kommt aus <code>scoringmodel.py</code>; bei Perks wird der AR-Wert als Referenz gezeigt (tatsächliche Werte variieren je Waffen-Kategorie).
-  </p>
+
+  <div class="analysis-filters">
+    <select id="f-category">
+      <option value="">Alle Kategorien</option>
+      <option value="Primary">Primary</option>
+      <option value="Secondary">Secondary</option>
+      <option value="Equipment">Equipment</option>
+      <option value="Grenade">Grenade</option>
+      <option value="Perk1">Perk 1</option>
+      <option value="Perk2">Perk 2</option>
+      <option value="Perk3">Perk 3</option>
+    </select>
+    <select id="f-tendency">
+      <option value="">Alle Tendenzen</option>
+      <option value="up">↑ Score rauf</option>
+      <option value="down">↓ Score runter</option>
+      <option value="flat">= passt</option>
+      <option value="actionable">Nur Empfehlungen (↑/↓)</option>
+    </select>
+    <input type="text" id="f-search" placeholder="Name suchen..." autocomplete="off">
+    <span id="f-count" class="muted small"></span>
+  </div>
+
   {% if rows %}
   <div class="table-wrap">
     <table class="analysis-table">
       <thead>
         <tr>
-          <th>Kategorie</th>
+          <th>Kat.</th>
           <th>Name</th>
           <th class="num" title="Anzahl Bewertungen">N</th>
-          <th class="num" title="Durchschnittliches Judgment (+1 zu niedrig, -1 zu hoch)">Ø Bew.</th>
-          <th class="num" title="Gewichtete Delta-Empfehlung">Ø Δ</th>
-          <th class="num">Aktuell</th>
-          <th class="num">Empfohlen</th>
-          <th class="num">Diff</th>
+          <th class="num" title="Gewichtete Delta-Empfehlung (Slider 2:1 vs Quick-Buttons)">Ø Δ</th>
+          <th class="num" title="Aktueller → empfohlener Score">Score</th>
           <th title="Was die Community empfiehlt">Tendenz</th>
-          <th class="num" title="0-5, abgeleitet aus Stichprobengröße">Konf.</th>
-          <th class="num" title="Standardabweichung der Deltas - niedrig = alle einig">σ</th>
-          <th class="num" title="Wie viele History-Rolls enthalten diese Komponente">Rolls</th>
+          <th class="num" title="Konfidenz 0-5 (aus Sample-Size)">Konf.</th>
+          <th class="num" title="σ - Streuung der Deltas. Niedrig = einig">σ</th>
+          <th class="num" title="History-Rolls mit dieser Komponente">Rolls</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="analysis-tbody">
         {% for row in rows %}
-        <tr>
+        {% set tend = 'up' if (row.diff is not none and row.diff > 0) else ('down' if (row.diff is not none and row.diff < 0) else ('flat' if row.diff == 0 else 'none')) %}
+        <tr data-category="{{ row.category }}" data-name="{{ row.name|lower }}" data-tendency="{{ tend }}">
           <td class="muted small">{{ row.category }}</td>
           <td><strong>{{ row.name }}</strong></td>
           <td class="num">{{ row.count }}</td>
-          <td class="num {% if row.avg_judgment > 0.25 %}pos{% elif row.avg_judgment < -0.25 %}neg{% endif %}">{{ row.avg_judgment }}</td>
           <td class="num {% if row.weighted_delta > 0.5 %}pos{% elif row.weighted_delta < -0.5 %}neg{% endif %}">{{ '{:+g}'.format(row.weighted_delta) }}</td>
-          <td class="num">{% if row.current is not none %}{{ row.current }}{% else %}<span class="muted">—</span>{% endif %}</td>
-          <td class="num">
-            {% if row.suggested is not none %}<strong>{{ row.suggested }}</strong>{% else %}<span class="muted">—</span>{% endif %}
-          </td>
-          <td class="num {% if row.diff and row.diff > 0 %}pos{% elif row.diff and row.diff < 0 %}neg{% endif %}">
-            {% if row.diff is not none and row.diff != 0 %}{{ '{:+d}'.format(row.diff) }}{% elif row.diff == 0 %}0{% else %}<span class="muted">—</span>{% endif %}
+          <td class="num score-cell">
+            {% if row.current is not none and row.suggested is not none and row.diff != 0 %}
+              <span class="from">{{ row.current }}</span>
+              <span class="arrow">→</span>
+              <strong class="{% if row.diff > 0 %}pos{% elif row.diff < 0 %}neg{% endif %}">{{ row.suggested }}</strong>
+            {% elif row.current is not none %}
+              {{ row.current }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
           </td>
           <td>
-            {% if row.diff is not none and row.diff > 0 %}
-              <span class="tendenz up">&uarr; Score rauf</span>
-            {% elif row.diff is not none and row.diff < 0 %}
-              <span class="tendenz down">&darr; Score runter</span>
-            {% elif row.diff == 0 %}
-              <span class="tendenz flat">= passt</span>
-            {% else %}
-              <span class="muted small">—</span>
-            {% endif %}
+            {% if tend == 'up' %}<span class="tendenz up">&uarr; rauf</span>
+            {% elif tend == 'down' %}<span class="tendenz down">&darr; runter</span>
+            {% elif tend == 'flat' %}<span class="tendenz flat">= passt</span>
+            {% else %}<span class="muted small">—</span>{% endif %}
           </td>
           <td class="num">
             <span class="conf-bar" title="Konfidenz {{ row.confidence }}">
@@ -93,4 +106,43 @@
 </article>
 
 <p><a href="{{ url_for('rate_home') }}">&larr; Zurück</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const fCat = document.getElementById('f-category');
+  const fTend = document.getElementById('f-tendency');
+  const fSearch = document.getElementById('f-search');
+  const fCount = document.getElementById('f-count');
+  const tbody = document.getElementById('analysis-tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  function apply() {
+    const cat = fCat.value;
+    const tend = fTend.value;
+    const q = fSearch.value.trim().toLowerCase();
+    let shown = 0;
+    rows.forEach(r => {
+      let ok = true;
+      if (cat && r.dataset.category !== cat) ok = false;
+      if (ok && tend) {
+        if (tend === 'actionable') {
+          if (r.dataset.tendency === 'flat' || r.dataset.tendency === 'none') ok = false;
+        } else if (r.dataset.tendency !== tend) ok = false;
+      }
+      if (ok && q && !r.dataset.name.includes(q)) ok = false;
+      r.hidden = !ok;
+      if (ok) shown++;
+    });
+    fCount.textContent = `${shown} / ${rows.length} sichtbar`;
+  }
+
+  fCat.addEventListener('change', apply);
+  fTend.addEventListener('change', apply);
+  fSearch.addEventListener('input', apply);
+  apply();
+})();
+</script>
 {% endblock %}

@@ -270,26 +270,39 @@ td.num.high { color: #ef4444; font-weight: 600; }
 td.num.pos { color: #4ade80; font-weight: 600; }
 td.num.neg { color: #f87171; font-weight: 600; }
 
-/* Analyse-Tabelle */
-.analysis-table th { font-size: 0.65rem; }
-.analysis-table td { font-size: 0.85rem; }
-.analysis-table code { font-size: 0.8rem; padding: 0.1rem 0.3rem; background: rgba(255,255,255,0.06); border-radius: 3px; }
+/* Analyse-Tabelle — kompaktes Layout damit alles ohne Scroll passt */
+.analysis-table { table-layout: auto; font-size: 0.82rem; }
+.analysis-table th,
+.analysis-table td { padding: 0.4rem 0.45rem; }
+.analysis-table th { font-size: 0.62rem; letter-spacing: 0.05em; }
+.analysis-table th:first-child,
+.analysis-table td:first-child { padding-left: 0.7rem; }
+.analysis-table th:last-child,
+.analysis-table td:last-child { padding-right: 0.7rem; }
+.analysis-table td.small,
+.analysis-table td .small { font-size: 0.72rem; }
+
+/* Score-Zelle: "6 → 9" kompakt */
+.score-cell .from { color: var(--muted); }
+.score-cell .arrow { color: var(--muted); margin: 0 0.2rem; font-size: 0.82rem; }
+.score-cell strong { font-weight: 700; }
+
 .conf-bar { display: inline-flex; gap: 2px; align-items: center; }
 .conf-bar i {
   display: inline-block;
-  width: 5px;
+  width: 4px;
   height: 10px;
   border-radius: 1px;
   background: rgba(255,255,255,0.1);
 }
 .conf-bar i.on { background: var(--accent); }
 
-/* Tendenz-Chips in der Analyse */
+/* Tendenz-Chips (kompakt) */
 .tendenz {
   display: inline-block;
-  padding: 0.15rem 0.55rem;
+  padding: 0.12rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -297,6 +310,29 @@ td.num.neg { color: #f87171; font-weight: 600; }
 .tendenz.up   { background: rgba(74,222,128,0.15); color: #4ade80; }
 .tendenz.down { background: rgba(248,113,113,0.15); color: #f87171; }
 .tendenz.flat { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+/* Filter-Controls über der Analyse-Tabelle */
+.analysis-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+}
+.analysis-filters select,
+.analysis-filters input[type="text"] {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  height: auto;
+  min-width: 160px;
+}
+.analysis-filters input[type="text"] { flex: 1; min-width: 180px; }
+.analysis-filters .small { margin-left: auto; }
 
 /* Login page */
 .login-body {
