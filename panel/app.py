@@ -44,7 +44,8 @@ from playerstats import (  # noqa: E402
     class_fingerprint,
 )
 import randomClass as rc_module  # noqa: E402
-from scoringmodel import calculate_class_score  # noqa: E402
+from scoringmodel import calculate_class_score, get_score_breakdown  # noqa: E402
+import scoringmodel as sm  # noqa: E402
 
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
@@ -468,6 +469,7 @@ def _history_to_rate_card(entry: dict) -> dict:
     return {
         "class": class_data,
         "current_score": entry.get("score", 0),
+        "breakdown": get_score_breakdown(class_data),
         "fingerprint": class_fingerprint(class_data),
         "rolled_by": entry.get("name", ""),
         "rolled_at": entry.get("ts", ""),
@@ -496,6 +498,7 @@ def _generate_training_card() -> dict:
     return {
         "class": class_data,
         "current_score": score,
+        "breakdown": get_score_breakdown(class_data),
         "fingerprint": class_fingerprint(class_data),
         "rolled_by": "",
         "rolled_at": "",
@@ -531,14 +534,83 @@ def rate_train():
     return render_template("rate_train.html")
 
 
+JUDGMENT_VALUE = {"low": +1, "fair": 0, "high": -1}
+JUDGMENT_STEP = 2     # fixer Delta-Betrag für Quick-Button-Ratings ohne Slider
+SLIDER_WEIGHT = 2.0   # Slider-Ratings zaehlen doppelt ggü. Quick-Buttons
+BUTTON_WEIGHT = 1.0
+MIN_SAMPLES_DEFAULT = 3
+
+
+def _implied_delta(rating: dict):
+    """Gibt (delta, weight) fuer ein Rating zurueck. Slider-Ratings gewichtet staerker."""
+    if rating.get("suggested_score") is not None:
+        return rating["suggested_score"] - rating["current_score"], SLIDER_WEIGHT
+    j = rating.get("judgment", "fair")
+    step = {"low": +JUDGMENT_STEP, "fair": 0, "high": -JUDGMENT_STEP}.get(j, 0)
+    return step, BUTTON_WEIGHT
+
+
+def _lookup_current_value(category: str, name: str):
+    """Aktueller Score-Wert aus scoringmodel fuer eine Komponente. None wenn unbekannt."""
+    if not name:
+        return None
+    if category == "Primary":
+        for wdict in (sm.ar_data, sm.smg_data, sm.lmg_data, sm.sniper_data, sm.riot_shield_data):
+            if name in wdict:
+                return wdict[name].get("base")
+    elif category == "Secondary":
+        for wdict in (sm.pistol_secondary_data, sm.mp_secondary_data, sm.shotgun_secondary_data, sm.launcher_secondary_data):
+            if name in wdict:
+                return wdict[name].get("base")
+    elif category == "Equipment":
+        return sm.equipment_scores.get(name)
+    elif category == "Grenade":
+        return sm.special_grenade_scores.get(name)
+    elif category.startswith("Perk"):
+        # Perk-Modifier sind kategorie-abhaengig (AR/SMG/LMG/Sniper). Zeige AR-Wert als Referenz.
+        return sm.ar_perk_modifiers.get(name)
+    return None
+
+
+def _count_history_occurrences() -> dict:
+    """Zaehlt pro (category, name) wie viele History-Rolls die Komponente enthalten."""
+    counts: dict[tuple[str, str], int] = {}
+    history_file = STATS_DIR / "history.jsonl"
+    if not history_file.exists():
+        return counts
+    with open(history_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            pw = weapon_base(e.get("primary", ""))
+            sw = weapon_base(e.get("secondary", ""))
+            for key in (
+                ("Primary", pw),
+                ("Secondary", sw),
+                ("Equipment", e.get("equipment", "")),
+                ("Grenade", e.get("special_grenade", "")),
+                ("Perk1", e.get("perk1", "")),
+                ("Perk2", e.get("perk2", "")),
+                ("Perk3", e.get("perk3", "")),
+            ):
+                if key[1]:
+                    counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 @app.route("/rate/analysis")
 @require_admin
 def rate_analysis():
-    # Aggregation nach (user, fingerprint) - letztes Rating zaehlt
+    show_all = request.args.get("all") == "1"
+    min_samples = 1 if show_all else MIN_SAMPLES_DEFAULT
+
     latest = ratings_by_user_fingerprint()
     ratings = list(latest.values())
-
-    JUDGMENT_VALUE = {"low": +1, "fair": 0, "high": -1}
 
     def _primary_weapon(class_data: dict) -> str:
         p = class_data.get("primary", "")
@@ -554,12 +626,12 @@ def rate_analysis():
         if not name:
             return
         key = (cat, name)
-        b = by_component.setdefault(key, {"count": 0, "judgment_sum": 0, "delta_sum": 0, "delta_count": 0})
+        b = by_component.setdefault(key, {"count": 0, "judgment_sum": 0, "deltas": [], "weights": []})
         b["count"] += 1
         b["judgment_sum"] += JUDGMENT_VALUE.get(r.get("judgment", "fair"), 0)
-        if r.get("suggested_score") is not None:
-            b["delta_sum"] += r["suggested_score"] - r["current_score"]
-            b["delta_count"] += 1
+        delta, weight = _implied_delta(r)
+        b["deltas"].append(delta)
+        b["weights"].append(weight)
 
     for r in ratings:
         cd = r.get("class", {})
@@ -571,26 +643,62 @@ def rate_analysis():
         _add("Perk2", cd.get("perk2", ""), r)
         _add("Perk3", cd.get("perk3", ""), r)
 
+    history_counts = _count_history_occurrences()
+
     rows = []
     for (cat, name), b in by_component.items():
         count = b["count"]
+        if count < min_samples:
+            continue
         avg_judgment = b["judgment_sum"] / count if count else 0.0
-        avg_delta = b["delta_sum"] / b["delta_count"] if b["delta_count"] else None
+        total_weight = sum(b["weights"])
+        weighted_delta = (
+            sum(d * w for d, w in zip(b["deltas"], b["weights"])) / total_weight
+            if total_weight else 0.0
+        )
+        # Standardabweichung der rohen Deltas (Konsens)
+        if len(b["deltas"]) > 1:
+            mean_d = sum(b["deltas"]) / len(b["deltas"])
+            variance = sum((d - mean_d) ** 2 for d in b["deltas"]) / len(b["deltas"])
+            stddev = variance ** 0.5
+        else:
+            stddev = 0.0
+        confidence = min(count / 10.0, 1.0)
+
+        current = _lookup_current_value(cat, name)
+        if current is not None:
+            suggested = current + round(weighted_delta)
+            diff = suggested - current
+        else:
+            suggested = None
+            diff = None
+
+        rolls_affected = history_counts.get((cat, name), 0)
         rows.append({
             "category": cat,
             "name": name,
             "count": count,
             "avg_judgment": round(avg_judgment, 2),
-            "avg_delta": round(avg_delta, 1) if avg_delta is not None else None,
+            "weighted_delta": round(weighted_delta, 1),
+            "current": current,
+            "suggested": suggested,
+            "diff": diff,
+            "confidence": round(confidence, 2),
+            "confidence_bar": int(round(confidence * 5)),  # 0-5 Balken
+            "stddev": round(stddev, 2),
+            "rolls_affected": rolls_affected,
             "bias": "zu hoch" if avg_judgment < -0.25 else ("zu niedrig" if avg_judgment > 0.25 else "passt"),
         })
 
-    rows.sort(key=lambda x: abs(x["avg_judgment"]), reverse=True)
+    # Sortierung nach Actionability (|weighted_delta| * confidence)
+    rows.sort(key=lambda x: abs(x["weighted_delta"]) * x["confidence"], reverse=True)
 
     return render_template(
         "rate_analysis.html",
         rows=rows,
         total_ratings=len(ratings),
+        show_all=show_all,
+        min_samples=min_samples,
     )
 
 

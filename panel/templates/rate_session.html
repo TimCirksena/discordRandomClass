@@ -63,6 +63,7 @@ function renderCard(card) {
   emptyEl.hidden = true;
   rateCard.hidden = false;
   const c = card.class;
+  const bd = card.breakdown || {};
   const meta = card.rolled_by
     ? `Gerollt von <strong>${escapeHtml(card.rolled_by)}</strong> am ${escapeHtml(card.rolled_at.replace('T', ' ').slice(0, 16))}`
     : '';
@@ -70,13 +71,13 @@ function renderCard(card) {
     <header><strong>Klasse</strong></header>
     ${meta ? `<p class="muted small">${meta}</p>` : ''}
     <div class="class-grid">
-      <div><span class="k">Primary</span><span class="v">${escapeHtml(c.primary)}</span></div>
-      <div><span class="k">Secondary</span><span class="v">${escapeHtml(c.secondary)}</span></div>
-      <div><span class="k">Equipment</span><span class="v">${escapeHtml(c.equipment)}</span></div>
-      <div><span class="k">Spezialgranate</span><span class="v">${escapeHtml(c.special_grenade)}</span></div>
-      <div><span class="k">Perk 1</span><span class="v">${escapeHtml(c.perk1)}</span></div>
-      <div><span class="k">Perk 2</span><span class="v">${escapeHtml(c.perk2)}</span></div>
-      <div><span class="k">Perk 3</span><span class="v">${escapeHtml(c.perk3)}</span></div>
+      <div><span class="k">Primary</span><span class="v">${escapeHtml(c.primary)}</span><span class="p ${pointsClass(bd.primary)}">${fmtPoints(bd.primary)}</span></div>
+      <div><span class="k">Secondary</span><span class="v">${escapeHtml(c.secondary)}</span><span class="p ${pointsClass(bd.secondary)}">${fmtPoints(bd.secondary)}</span></div>
+      <div><span class="k">Equipment</span><span class="v">${escapeHtml(c.equipment)}</span><span class="p ${pointsClass(bd.equipment)}">${fmtPoints(bd.equipment)}</span></div>
+      <div><span class="k">Spezialgranate</span><span class="v">${escapeHtml(c.special_grenade)}</span><span class="p ${pointsClass(bd.special_grenade)}">${fmtPoints(bd.special_grenade)}</span></div>
+      <div><span class="k">Perk 1</span><span class="v">${escapeHtml(c.perk1)}</span><span class="p ${pointsClass(bd.perk1)}">${fmtPoints(bd.perk1)}</span></div>
+      <div><span class="k">Perk 2</span><span class="v">${escapeHtml(c.perk2)}</span><span class="p ${pointsClass(bd.perk2)}">${fmtPoints(bd.perk2)}</span></div>
+      <div><span class="k">Perk 3</span><span class="v">${escapeHtml(c.perk3)}</span><span class="p ${pointsClass(bd.perk3)}">${fmtPoints(bd.perk3)}</span></div>
     </div>
     <div class="score-row">
       <span class="score-label">Aktueller Score</span>
@@ -119,6 +120,19 @@ function renderCard(card) {
 function escapeHtml(s) {
   if (!s) return '';
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmtPoints(n) {
+  if (n === null || n === undefined) return '';
+  const v = Number(n);
+  return v > 0 ? `+${v}` : `${v}`;
+}
+
+function pointsClass(n) {
+  const v = Number(n);
+  if (v > 0) return 'pos';
+  if (v < 0) return 'neg';
+  return 'zero';
 }
 
 async function loadNext() {

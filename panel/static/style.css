@@ -209,9 +209,30 @@ tr.tier-trash { background: rgba(239, 68, 68, 0.04); }
 
 .rate-card { padding: 1.5rem; }
 .class-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem 1.5rem; margin: 1rem 0 1.25rem; padding: 1rem 0; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
-.class-grid > div { display: flex; flex-direction: column; gap: 0.1rem; }
-.class-grid .k { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.06em; }
-.class-grid .v { font-weight: 600; white-space: pre-wrap; line-height: 1.4; }
+.class-grid > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.75rem;
+  row-gap: 0.1rem;
+  align-items: baseline;
+}
+.class-grid .k { grid-column: 1 / -1; font-size: 0.7rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.06em; }
+.class-grid .v { font-weight: 600; white-space: pre-wrap; line-height: 1.4; min-width: 0; }
+.class-grid .p {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  justify-self: end;
+  align-self: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+}
+.class-grid .p.pos { color: #4ade80; }
+.class-grid .p.neg { color: #f87171; }
+.class-grid .p.zero { color: var(--muted); }
 
 .score-row { display: flex; align-items: baseline; gap: 0.4rem; justify-content: center; margin: 0.75rem 0 1rem; }
 .score-label { font-size: 0.85rem; color: var(--pico-muted-color); margin-right: 0.25rem; }
@@ -246,6 +267,22 @@ tr.tier-trash { background: rgba(239, 68, 68, 0.04); }
 
 td.num.low { color: #22c55e; font-weight: 600; }
 td.num.high { color: #ef4444; font-weight: 600; }
+td.num.pos { color: #4ade80; font-weight: 600; }
+td.num.neg { color: #f87171; font-weight: 600; }
+
+/* Analyse-Tabelle */
+.analysis-table th { font-size: 0.65rem; }
+.analysis-table td { font-size: 0.85rem; }
+.analysis-table code { font-size: 0.8rem; padding: 0.1rem 0.3rem; background: rgba(255,255,255,0.06); border-radius: 3px; }
+.conf-bar { display: inline-flex; gap: 2px; align-items: center; }
+.conf-bar i {
+  display: inline-block;
+  width: 5px;
+  height: 10px;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.1);
+}
+.conf-bar i.on { background: var(--accent); }
 
 /* Login page */
 .login-body {

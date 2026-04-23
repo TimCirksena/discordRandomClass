@@ -3,28 +3,47 @@
 
 {% block content %}
 <header class="page-header">
-  <h1>Rating-Analyse</h1>
-  <p>Aggregation aller Bewertungen. Pro User+Klasse zählt die letzte Bewertung. <strong>{{ total_ratings }}</strong> Datensätze.</p>
+  <div class="rate-header">
+    <div>
+      <h1>Rating-Analyse</h1>
+      <p>
+        Aggregation aller Bewertungen. Pro User+Klasse zählt die letzte Bewertung.
+        <strong>{{ total_ratings }}</strong> Datensätze insgesamt.
+      </p>
+    </div>
+    <div class="rate-filters">
+      {% if show_all %}
+      <a href="{{ url_for('rate_analysis') }}" role="button" class="secondary">Nur ≥{{ 3 }} Ratings zeigen</a>
+      {% else %}
+      <a href="{{ url_for('rate_analysis', all='1') }}" role="button" class="secondary">Alle zeigen</a>
+      {% endif %}
+    </div>
+  </div>
 </header>
 
 <article>
-  <header>
-    <strong>Komponenten-Bias</strong>
-  </header>
+  <header><strong>Komponenten-Empfehlungen</strong></header>
   <p class="muted small">
-    <em>Bewertung</em>: +1 = zu niedrig (Score sollte hoch), 0 = passt, -1 = zu hoch (Score sollte runter). Delta kommt aus Slider-Vorschlägen.
+    Sortiert nach Anpassungs-Priorität (|Ø Δ| × Konfidenz). Slider-Bewertungen zählen doppelt gegenüber Quick-Buttons.
+    Empfohlene Werte basieren auf naiver Mittelung — bei niedriger Konfidenz oder hohem σ (Streit) vorsichtig anwenden.
+    <strong>Aktueller Wert</strong> kommt aus <code>scoringmodel.py</code>; bei Perks wird der AR-Wert als Referenz gezeigt (tatsächliche Werte variieren je Waffen-Kategorie).
   </p>
   {% if rows %}
   <div class="table-wrap">
-    <table>
+    <table class="analysis-table">
       <thead>
         <tr>
           <th>Kategorie</th>
           <th>Name</th>
-          <th class="num">Ratings</th>
-          <th class="num">&Oslash; Bewertung</th>
-          <th class="num">&Oslash; Delta</th>
-          <th>Tendenz</th>
+          <th class="num" title="Anzahl Bewertungen">N</th>
+          <th class="num" title="Durchschnittliches Judgment (+1 zu niedrig, -1 zu hoch)">Ø Bew.</th>
+          <th class="num" title="Gewichtete Delta-Empfehlung">Ø Δ</th>
+          <th class="num">Aktuell</th>
+          <th class="num">Empfohlen</th>
+          <th class="num">Diff</th>
+          <th class="num" title="0-5, abgeleitet aus Stichprobengröße">Konf.</th>
+          <th class="num" title="Standardabweichung der Deltas - niedrig = alle einig">σ</th>
+          <th class="num" title="Wie viele History-Rolls enthalten diese Komponente">Rolls</th>
         </tr>
       </thead>
       <tbody>
@@ -33,16 +52,31 @@
           <td class="muted small">{{ row.category }}</td>
           <td><strong>{{ row.name }}</strong></td>
           <td class="num">{{ row.count }}</td>
-          <td class="num {% if row.avg_judgment > 0.25 %}low{% elif row.avg_judgment < -0.25 %}high{% endif %}">{{ row.avg_judgment }}</td>
-          <td class="num">{% if row.avg_delta is not none %}{{ '{:+.1f}'.format(row.avg_delta) }}{% else %}-{% endif %}</td>
-          <td class="muted small">{{ row.bias }}</td>
+          <td class="num {% if row.avg_judgment > 0.25 %}pos{% elif row.avg_judgment < -0.25 %}neg{% endif %}">{{ row.avg_judgment }}</td>
+          <td class="num {% if row.weighted_delta > 0.5 %}pos{% elif row.weighted_delta < -0.5 %}neg{% endif %}">{{ '{:+g}'.format(row.weighted_delta) }}</td>
+          <td class="num">{% if row.current is not none %}{{ row.current }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="num">
+            {% if row.suggested is not none %}<strong>{{ row.suggested }}</strong>{% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td class="num {% if row.diff and row.diff > 0 %}pos{% elif row.diff and row.diff < 0 %}neg{% endif %}">
+            {% if row.diff is not none and row.diff != 0 %}{{ '{:+d}'.format(row.diff) }}{% elif row.diff == 0 %}0{% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td class="num">
+            <span class="conf-bar" title="Konfidenz {{ row.confidence }}">
+              {% for i in range(5) %}<i class="{% if i < row.confidence_bar %}on{% endif %}"></i>{% endfor %}
+            </span>
+          </td>
+          <td class="num muted small">{{ row.stddev }}</td>
+          <td class="num muted small">{{ row.rolls_affected }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p class="muted">Noch keine Bewertungen vorhanden.</p>
+  <p class="muted">Noch keine Bewertungen mit mindestens {{ min_samples }} Ratings pro Komponente.
+    {% if not show_all %}<a href="{{ url_for('rate_analysis', all='1') }}">Alle zeigen</a>{% endif %}
+  </p>
   {% endif %}
 </article>
 
