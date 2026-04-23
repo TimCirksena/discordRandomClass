@@ -96,7 +96,7 @@ def weapon_base(raw: str) -> str:
     return raw.split(" with ")[0].strip() if " with " in raw else raw.strip()
 
 
-def build_stats_context():
+def build_stats_context(user_filter: str = ""):
     # Granular history (neues Format, pro Roll eine Zeile)
     full_history = []
     history_file = STATS_DIR / "history.jsonl"
@@ -114,15 +114,32 @@ def build_stats_context():
     # Leaderboard + Aggregat-Daten aus Daily Stats (alter + neuer Bestand)
     players_raw = get_all_players_historical()
 
-    total_rolls_daily = sum(p.get("rolls", 0) for p in players_raw.values())
-    # History bevorzugen, wenn sie umfangreicher ist (sonst Daily-Stats)
-    total_rolls = max(len(full_history), total_rolls_daily)
+    # User-Liste fuer Dropdown (sortiert nach Rolls desc)
+    user_options = sorted(
+        [
+            {"id": uid, "name": s.get("name") or f"User {uid[-4:]}", "rolls": s.get("rolls", 0)}
+            for uid, s in players_raw.items()
+            if s.get("rolls", 0) > 0
+        ],
+        key=lambda x: x["rolls"],
+        reverse=True,
+    )
 
-    # Primary Waffe: wenn History Daten hat -> von da, sonst aus Daily Stats aggregieren
-    if full_history:
+    # Filter anwenden wenn gesetzt
+    filtered_history = full_history
+    filtered_players = players_raw
+    if user_filter:
+        filtered_history = [e for e in full_history if str(e.get("user_id", "")) == user_filter]
+        filtered_players = {uid: s for uid, s in players_raw.items() if uid == user_filter}
+
+    total_rolls_daily = sum(p.get("rolls", 0) for p in filtered_players.values())
+    total_rolls = max(len(filtered_history), total_rolls_daily)
+
+    # Primary / Secondary Aggregate
+    if filtered_history:
         primary_counts = {}
         secondary_counts = {}
-        for e in full_history:
+        for e in filtered_history:
             p = weapon_base(e.get("primary", ""))
             s = weapon_base(e.get("secondary", ""))
             if p:
@@ -132,26 +149,27 @@ def build_stats_context():
     else:
         primary_counts = {}
         secondary_counts = {}
-        for p in players_raw.values():
+        for p in filtered_players.values():
             for weapon, count in p.get("weapons", {}).items():
                 primary_counts[weapon] = primary_counts.get(weapon, 0) + count
 
     top_primary = sorted(primary_counts.items(), key=lambda x: x[1], reverse=True)
     top_secondary = sorted(secondary_counts.items(), key=lambda x: x[1], reverse=True)
-    top_perk1 = aggregate_counts(full_history, "perk1")
-    top_perk2 = aggregate_counts(full_history, "perk2")
-    top_perk3 = aggregate_counts(full_history, "perk3")
-    top_equip = aggregate_counts(full_history, "equipment")
-    top_grenade = aggregate_counts(full_history, "special_grenade")
+    top_perk1 = aggregate_counts(filtered_history, "perk1")
+    top_perk2 = aggregate_counts(filtered_history, "perk2")
+    top_perk3 = aggregate_counts(filtered_history, "perk3")
+    top_equip = aggregate_counts(filtered_history, "equipment")
+    top_grenade = aggregate_counts(filtered_history, "special_grenade")
 
     leaderboard = []
-    for uid, stats in players_raw.items():
+    for uid, stats in filtered_players.items():
         rolls = stats.get("rolls", 0)
         if rolls == 0:
             continue
         avg = stats.get("total_score", 0) / rolls
         worst = stats.get("worst_score", 999)
         leaderboard.append({
+            "id": uid,
             "name": stats.get("name") or f"User {uid[-4:]}",
             "rolls": rolls,
             "avg": round(avg, 1),
@@ -162,11 +180,20 @@ def build_stats_context():
         })
     leaderboard.sort(key=lambda p: p["rolls"], reverse=True)
 
-    recent = list(reversed(full_history))[:50]
+    # Recent rolls: filtered oder all
+    recent_source = filtered_history if user_filter else full_history
+    recent = list(reversed(recent_source))[:50]
     for r in recent:
         r["tier"] = tier_for(r.get("score", 0))
         r["time"] = r.get("ts", "")[11:16]
         r["date"] = r.get("ts", "")[:10]
+
+    selected_user_name = ""
+    if user_filter:
+        for u in user_options:
+            if u["id"] == user_filter:
+                selected_user_name = u["name"]
+                break
 
     return {
         "total_rolls": total_rolls,
@@ -180,6 +207,9 @@ def build_stats_context():
         "leaderboard": leaderboard,
         "recent": recent,
         "legacy_only": not full_history,
+        "user_options": user_options,
+        "user_filter": user_filter,
+        "selected_user_name": selected_user_name,
     }
 
 
@@ -190,7 +220,8 @@ def index():
 
 @app.route("/stats")
 def stats_page():
-    ctx = build_stats_context()
+    user_filter = request.args.get("user", "").strip()
+    ctx = build_stats_context(user_filter=user_filter)
     return render_template("stats.html", **ctx)
 
 

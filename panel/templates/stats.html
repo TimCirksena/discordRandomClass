@@ -23,9 +23,29 @@
 
 {% block content %}
 <header class="page-header">
-  <h1>Stats</h1>
-  <p>Insgesamt <strong>{{ total_rolls }}</strong> Klassen gezogen.</p>
-  {% if legacy_only %}
+  <div class="stats-header">
+    <div>
+      <h1>Stats {% if selected_user_name %}<span class="filter-tag">{{ selected_user_name }}</span>{% endif %}</h1>
+      <p>
+        {% if user_filter %}
+          <strong>{{ total_rolls }}</strong> Rolls von diesem Spieler.
+        {% else %}
+          Insgesamt <strong>{{ total_rolls }}</strong> Klassen gezogen.
+        {% endif %}
+      </p>
+    </div>
+    <form method="get" action="{{ url_for('stats_page') }}" class="user-filter">
+      <label for="user-select">Spieler:</label>
+      <select id="user-select" name="user" onchange="this.form.submit()">
+        <option value="">Gesamt</option>
+        {% for u in user_options %}
+        <option value="{{ u.id }}" {% if u.id == user_filter %}selected{% endif %}>{{ u.name }} ({{ u.rolls }})</option>
+        {% endfor %}
+      </select>
+      <noscript><button type="submit">Filter</button></noscript>
+    </form>
+  </div>
+  {% if legacy_only and not user_filter %}
   <p class="muted">Hinweis: Historische Daten aus Bot-Logs - detaillierte Roll-Historie (Sekundaerwaffen, Perks, Einzelrolls) wird erst ab jetzt erfasst.</p>
   {% endif %}
 </header>
