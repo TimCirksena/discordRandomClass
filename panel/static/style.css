@@ -29,6 +29,35 @@ main.container {
 .topnav a:hover { color: var(--pico-color); background: rgba(255,255,255,0.04); }
 .topnav a.active { color: var(--pico-color); background: rgba(255,255,255,0.08); }
 .topnav strong { letter-spacing: -0.01em; font-size: 1.05rem; }
+
+/* Bot-Status zentriert in der Navbar zwischen Logo und Links */
+.nav-status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+  letter-spacing: 0.01em;
+}
+.nav-status .nav-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 3px transparent;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.nav-status .nav-dot.on      { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.nav-status .nav-dot.off     { background: #555; }
+.nav-status .nav-dot.pending { background: #eab308; box-shadow: 0 0 6px rgba(234,179,8,0.5); }
+.nav-status .nav-dot.err     { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.nav-status .status-text { font-weight: 500; }
+@media (max-width: 720px) {
+  .topnav { flex-wrap: wrap; }
+  .nav-status { order: 3; flex-basis: 100%; padding-top: 0.3rem; border-top: 1px solid var(--card-border); }
+}
+
 .topnav .brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--pico-color); padding: 0.2rem 0.5rem; border-radius: 6px; }
 .topnav .brand:hover { background: rgba(255,255,255,0.04); }
 .topnav img.brand-logo { width: 32px !important; height: 32px !important; max-width: 32px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); display: block; flex-shrink: 0; }
@@ -202,6 +231,17 @@ tr.reroll-row td:first-child { border-left: 2px solid rgba(139, 92, 246, 0.5); }
 }
 .event-chip.roll { background: rgba(255,255,255,0.05); color: var(--muted); }
 .event-chip.reroll { background: rgba(139, 92, 246, 0.18); color: #c4b5fd; }
+.event-cell { min-width: 180px; }
+.event-detail {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--pico-muted-color);
+}
+.event-kind { color: #c4b5fd; font-weight: 600; margin-right: 0.25rem; }
+.event-arrow { color: var(--muted); margin: 0 0.25rem; }
+.event-value { color: var(--pico-color); font-weight: 500; }
 td.rerolled-cell {
   position: relative;
   background: rgba(139, 92, 246, 0.08);

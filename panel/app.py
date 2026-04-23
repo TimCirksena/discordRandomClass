@@ -95,6 +95,15 @@ def inject_user():
         "is_admin": bool(session.get("user") and str(session["user"].get("id", "")) == str(ADMIN_DISCORD_ID)),
     }
 
+
+@app.context_processor
+def inject_bot_status():
+    # Fuer die Navbar-Anzeige; JS aktualisiert spaeter live.
+    try:
+        return {"nav_bot_status": bot_status()}
+    except Exception:
+        return {"nav_bot_status": "unknown"}
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("bot-panel")
 

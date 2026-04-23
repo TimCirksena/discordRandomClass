@@ -136,9 +136,20 @@
             <span class="time">{{ r.time }}</span>
           </td>
           <td>{{ r.name or ('User ' + r.user_id[-4:]) }}</td>
-          <td>
+          <td class="event-cell">
             {% if is_reroll %}
-              <span class="event-chip reroll" title="Reroll von {{ rt }}">↻ Reroll · {{ rt }}</span>
+              <span class="event-chip reroll">↻ Reroll</span>
+              <span class="event-detail">
+                <span class="event-kind">{{ rt|capitalize }}</span>
+                <span class="event-arrow">→</span>
+                <span class="event-value">
+                  {% if rt == 'primary' %}{{ r.primary }}
+                  {% elif rt == 'secondary' %}{{ r.secondary }}
+                  {% elif rt == 'perks' %}{{ r.perk1 }} / {{ r.perk2 }} / {{ r.perk3 }}
+                  {% elif rt == 'extras' %}{{ r.equipment }} · {{ r.special_grenade }}
+                  {% endif %}
+                </span>
+              </span>
             {% else %}
               <span class="event-chip roll">Roll</span>
             {% endif %}
