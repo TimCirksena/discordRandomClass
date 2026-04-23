@@ -35,8 +35,14 @@
     <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Steuerung</a></li>
     <li><a href="{{ url_for('stats_page') }}" class="{% if request.endpoint == 'stats_page' %}active{% endif %}">Stats</a></li>
     <li><a href="{{ url_for('rate_home') }}" class="{% if request.endpoint and request.endpoint.startswith('rate') %}active{% endif %}">Rate</a></li>
-    <li><a href="{{ url_for('haudentim_page') }}" class="{% if request.endpoint and request.endpoint.startswith('haudentim') %}active{% endif %}">Hau den Tim</a></li>
-    <li><a href="{{ url_for('crawler_page') }}" class="{% if request.endpoint and request.endpoint.startswith('crawler') %}active{% endif %}">Boss-Fight</a></li>
+    <li class="nav-dropdown">
+      {% set game_active = request.endpoint and (request.endpoint.startswith('haudentim') or request.endpoint.startswith('crawler')) %}
+      <button type="button" class="nav-dropdown-trigger {% if game_active %}active{% endif %}">Games <span class="chev">▾</span></button>
+      <ul class="nav-dropdown-menu">
+        <li><a href="{{ url_for('haudentim_page') }}" class="{% if request.endpoint and request.endpoint.startswith('haudentim') %}active{% endif %}">Hau den Tim</a></li>
+        <li><a href="{{ url_for('crawler_page') }}" class="{% if request.endpoint and request.endpoint.startswith('crawler') %}active{% endif %}">Boss-Fight</a></li>
+      </ul>
+    </li>
     {% if current_user %}
     <li class="user-chip">
       <span class="user-name">{{ current_user.global_name }}</span>
