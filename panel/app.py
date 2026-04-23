@@ -604,7 +604,7 @@ def _count_history_occurrences() -> dict:
 
 
 @app.route("/rate/analysis")
-@require_admin
+@require_login
 def rate_analysis():
     show_all = request.args.get("all") == "1"
     min_samples = 1 if show_all else MIN_SAMPLES_DEFAULT

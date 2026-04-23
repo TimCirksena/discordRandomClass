@@ -29,10 +29,9 @@
   </ul>
 </article>
 
-{% if is_admin %}
 <article>
-  <header><strong>Admin</strong></header>
-  <p><a href="{{ url_for('rate_analysis') }}">Analyse-Seite öffnen &rarr;</a></p>
+  <header><strong>Analyse</strong></header>
+  <p>Aggregierte Bewertungen pro Waffe/Perk/Equipment — welche Komponenten systematisch zu hoch oder zu niedrig gescort sind.</p>
+  <p><a href="{{ url_for('rate_analysis') }}" role="button" class="secondary">Analyse öffnen</a></p>
 </article>
-{% endif %}
 {% endblock %}
