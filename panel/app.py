@@ -226,14 +226,17 @@ def build_stats_context(user_filter: str = "", date_range: str = "all"):
         filtered_history = [e for e in full_history if str(e.get("user_id", "")) == user_filter]
         filtered_players = {uid: s for uid, s in players_raw.items() if uid == user_filter}
 
+    # Für Aggregationen nur Initial-Rolls zählen (Rerolls würden sonst doppelt zählen).
+    rolls_only = [e for e in filtered_history if e.get("event", "roll") != "reroll"]
+
     total_rolls_daily = sum(p.get("rolls", 0) for p in filtered_players.values())
-    total_rolls = max(len(filtered_history), total_rolls_daily)
+    total_rolls = max(len(rolls_only), total_rolls_daily)
 
     # Primary / Secondary Aggregate
-    if filtered_history:
+    if rolls_only:
         primary_counts = {}
         secondary_counts = {}
-        for e in filtered_history:
+        for e in rolls_only:
             p = weapon_base(e.get("primary", ""))
             s = weapon_base(e.get("secondary", ""))
             if p:
@@ -249,11 +252,11 @@ def build_stats_context(user_filter: str = "", date_range: str = "all"):
 
     top_primary = sorted(primary_counts.items(), key=lambda x: x[1], reverse=True)
     top_secondary = sorted(secondary_counts.items(), key=lambda x: x[1], reverse=True)
-    top_perk1 = aggregate_counts(filtered_history, "perk1")
-    top_perk2 = aggregate_counts(filtered_history, "perk2")
-    top_perk3 = aggregate_counts(filtered_history, "perk3")
-    top_equip = aggregate_counts(filtered_history, "equipment")
-    top_grenade = aggregate_counts(filtered_history, "special_grenade")
+    top_perk1 = aggregate_counts(rolls_only, "perk1")
+    top_perk2 = aggregate_counts(rolls_only, "perk2")
+    top_perk3 = aggregate_counts(rolls_only, "perk3")
+    top_equip = aggregate_counts(rolls_only, "equipment")
+    top_grenade = aggregate_counts(rolls_only, "special_grenade")
 
     leaderboard = []
     for uid, stats in filtered_players.items():

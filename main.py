@@ -1,4 +1,5 @@
 from typing import Final
+from datetime import datetime
 import os
 import asyncio
 from dotenv import load_dotenv
@@ -91,7 +92,7 @@ class VoteView(discord.ui.View):
 class ClassRollView(discord.ui.View):
     """Reroll-Buttons unter der gerollten Klasse. Pro /random nur ein Reroll."""
 
-    def __init__(self, owner_id: int, owner_mention: str, owner_name: str, channel: discord.abc.Messageable, class_data: dict):
+    def __init__(self, owner_id: int, owner_mention: str, owner_name: str, channel: discord.abc.Messageable, class_data: dict, parent_ts: str = "", initial_score: int = 0):
         super().__init__(timeout=300)  # 5 Minuten
         self.owner_id = owner_id
         self.owner_mention = owner_mention
@@ -100,6 +101,8 @@ class ClassRollView(discord.ui.View):
         self.class_data = class_data
         self.rc = randomClass.RandomClass()
         self.message: discord.InteractionMessage | None = None
+        self.parent_ts = parent_ts
+        self.initial_score = initial_score
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.owner_id:
@@ -121,8 +124,16 @@ class ClassRollView(discord.ui.View):
             child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
         self.stop()
-        # Reroll in Tages-Stats festhalten
-        record_reroll(self.owner_id, self.owner_name, reroll_type)
+        # Reroll in Tages-Stats festhalten + Event in History schreiben
+        record_reroll(
+            self.owner_id,
+            self.owner_name,
+            reroll_type,
+            class_data=dict(self.class_data),
+            prev_score=self.initial_score,
+            new_score=total_score,
+            parent_ts=self.parent_ts,
+        )
         # Vote-Message im Channel
         vote = VoteView(reroller_id=self.owner_id, reroll_label=reroll_label)
         try:
@@ -315,12 +326,16 @@ async def random_class(interaction: discord.Interaction):
     await asyncio.sleep(1.0)
 
     # Step 4: Finales Embed mit Score + Tier-Farbe + Reroll-Buttons
+    # parent_ts verlinkt das Reroll-Event mit dem ursprünglichen Roll-Event in der History
+    roll_ts = datetime.now().isoformat(timespec="seconds")
     view = ClassRollView(
         owner_id=user_id,
         owner_mention=interaction.user.mention,
         owner_name=interaction.user.display_name,
         channel=interaction.channel,
         class_data=class_data,
+        parent_ts=roll_ts,
+        initial_score=total_score,
     )
     message = await interaction.edit_original_response(
         embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id),

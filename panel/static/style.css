@@ -188,6 +188,30 @@ td.perks { color: var(--pico-muted-color); font-size: 0.82rem; }
 tr.tier-legendary { background: rgba(234, 179, 8, 0.05); }
 tr.tier-trash { background: rgba(239, 68, 68, 0.04); }
 
+/* Reroll-Zeilen in der Letzte-Rolls-Tabelle */
+tr.reroll-row { background: rgba(139, 92, 246, 0.06); }
+tr.reroll-row td:first-child { border-left: 2px solid rgba(139, 92, 246, 0.5); }
+.event-chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.event-chip.roll { background: rgba(255,255,255,0.05); color: var(--muted); }
+.event-chip.reroll { background: rgba(139, 92, 246, 0.18); color: #c4b5fd; }
+td.rerolled-cell {
+  position: relative;
+  background: rgba(139, 92, 246, 0.08);
+  border-left: 1px dashed rgba(139, 92, 246, 0.4);
+}
+.score-prev { color: var(--muted); text-decoration: line-through; font-weight: 400; margin-right: 0.2rem; }
+.score-arrow { color: var(--muted); margin: 0 0.2rem; font-size: 0.82rem; }
+.score-arrow.up { color: #4ade80; }
+.score-arrow.down { color: #f87171; }
+
 .muted { color: var(--pico-muted-color); font-size: 0.9rem; }
 .small { font-size: 0.82rem; }
 .site-footer { text-align: center; color: var(--pico-muted-color); font-size: 0.8rem; padding: 1.5rem 1rem; max-width: 1020px; }

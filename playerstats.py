@@ -298,8 +298,17 @@ def get_all_players_historical(date_from=None, date_to=None) -> dict:
     return _load_all_historical(date_from=date_from, date_to=date_to)
 
 
-def record_reroll(user_id: int, display_name: str, reroll_type: str):
-    """Zählt einen Reroll auf dem Tagesaggregat des Users.
+def record_reroll(
+    user_id: int,
+    display_name: str,
+    reroll_type: str,
+    class_data: dict | None = None,
+    prev_score: int | None = None,
+    new_score: int | None = None,
+    parent_ts: str = "",
+):
+    """Zählt einen Reroll auf dem Tagesaggregat + loggt Event in history.jsonl wenn
+    class_data, prev_score und new_score mitgegeben werden.
 
     reroll_type: 'primary', 'secondary', 'perks' oder 'extras'.
     """
@@ -316,3 +325,26 @@ def record_reroll(user_id: int, display_name: str, reroll_type: str):
             s["name"] = display_name
     _save_json(_today_file(), _today)
     _remember_name(user_id, display_name)
+
+    # History-Event schreiben wenn voller Kontext vorhanden ist
+    if class_data is not None and prev_score is not None and new_score is not None:
+        entry = {
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "user_id": str(user_id),
+            "name": display_name,
+            "event": "reroll",
+            "reroll_type": reroll_type,
+            "primary": class_data.get("primary", ""),
+            "secondary": class_data.get("secondary", ""),
+            "equipment": class_data.get("equipment", ""),
+            "special_grenade": class_data.get("special_grenade", ""),
+            "perk1": class_data.get("perk1", ""),
+            "perk2": class_data.get("perk2", ""),
+            "perk3": class_data.get("perk3", ""),
+            "score": int(new_score),
+            "prev_score": int(prev_score),
+            "parent_ts": parent_ts,
+        }
+        os.makedirs(STATS_DIR, exist_ok=True)
+        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
