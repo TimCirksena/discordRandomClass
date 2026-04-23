@@ -97,6 +97,7 @@ def weapon_base(raw: str) -> str:
 
 
 def build_stats_context():
+    # Granular history (neues Format, pro Roll eine Zeile)
     full_history = []
     history_file = STATS_DIR / "history.jsonl"
     if history_file.exists():
@@ -110,18 +111,30 @@ def build_stats_context():
                 except json.JSONDecodeError:
                     continue
 
-    total_rolls = len(full_history)
+    # Leaderboard + Aggregat-Daten aus Daily Stats (alter + neuer Bestand)
+    players_raw = get_all_players_historical()
 
-    # Primary / Secondary Waffe - nur den Waffennamen, nicht das Attachment
-    primary_counts = {}
-    secondary_counts = {}
-    for e in full_history:
-        p = weapon_base(e.get("primary", ""))
-        s = weapon_base(e.get("secondary", ""))
-        if p:
-            primary_counts[p] = primary_counts.get(p, 0) + 1
-        if s:
-            secondary_counts[s] = secondary_counts.get(s, 0) + 1
+    total_rolls_daily = sum(p.get("rolls", 0) for p in players_raw.values())
+    # History bevorzugen, wenn sie umfangreicher ist (sonst Daily-Stats)
+    total_rolls = max(len(full_history), total_rolls_daily)
+
+    # Primary Waffe: wenn History Daten hat -> von da, sonst aus Daily Stats aggregieren
+    if full_history:
+        primary_counts = {}
+        secondary_counts = {}
+        for e in full_history:
+            p = weapon_base(e.get("primary", ""))
+            s = weapon_base(e.get("secondary", ""))
+            if p:
+                primary_counts[p] = primary_counts.get(p, 0) + 1
+            if s:
+                secondary_counts[s] = secondary_counts.get(s, 0) + 1
+    else:
+        primary_counts = {}
+        secondary_counts = {}
+        for p in players_raw.values():
+            for weapon, count in p.get("weapons", {}).items():
+                primary_counts[weapon] = primary_counts.get(weapon, 0) + count
 
     top_primary = sorted(primary_counts.items(), key=lambda x: x[1], reverse=True)
     top_secondary = sorted(secondary_counts.items(), key=lambda x: x[1], reverse=True)
@@ -131,8 +144,6 @@ def build_stats_context():
     top_equip = aggregate_counts(full_history, "equipment")
     top_grenade = aggregate_counts(full_history, "special_grenade")
 
-    # Leaderboard
-    players_raw = get_all_players_historical()
     leaderboard = []
     for uid, stats in players_raw.items():
         rolls = stats.get("rolls", 0)
@@ -151,7 +162,6 @@ def build_stats_context():
         })
     leaderboard.sort(key=lambda p: p["rolls"], reverse=True)
 
-    # Letzte 50 Rolls
     recent = list(reversed(full_history))[:50]
     for r in recent:
         r["tier"] = tier_for(r.get("score", 0))
@@ -169,6 +179,7 @@ def build_stats_context():
         "top_grenade": top_grenade[:10],
         "leaderboard": leaderboard,
         "recent": recent,
+        "legacy_only": not full_history,
     }
 
 

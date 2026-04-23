@@ -25,6 +25,9 @@
 <header class="page-header">
   <h1>Stats</h1>
   <p>Insgesamt <strong>{{ total_rolls }}</strong> Klassen gezogen.</p>
+  {% if legacy_only %}
+  <p class="muted">Hinweis: Historische Daten aus Bot-Logs - detaillierte Roll-Historie (Sekundaerwaffen, Perks, Einzelrolls) wird erst ab jetzt erfasst.</p>
+  {% endif %}
 </header>
 
 {% if leaderboard %}
