@@ -5,9 +5,12 @@ import json
 import re
 import subprocess
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from functools import wraps
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
 
 from flask import Flask, request, render_template, jsonify, url_for, redirect, session
 from flask_limiter import Limiter
@@ -128,7 +131,7 @@ def bot_logs(lines: int = 50) -> str:
         try:
             entry = json.loads(line)
             ts = int(entry.get("__REALTIME_TIMESTAMP", "0"))
-            dt = datetime.fromtimestamp(ts / 1_000_000)
+            dt = datetime.fromtimestamp(ts / 1_000_000, tz=timezone.utc).astimezone(BERLIN_TZ)
             msg = _PY_TIME_RE.sub("", entry.get("MESSAGE", ""))
             result.append(f"{dt.strftime('%H:%M:%S')}  {msg}")
         except (json.JSONDecodeError, ValueError):
