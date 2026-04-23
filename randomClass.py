@@ -430,10 +430,28 @@ class RandomClass:
             print(f"[DEBUG] select_single_attachment_secondary: {att}")
             return att
 
-        weapon_type = choice(["Pistol", "Machine Pistol", "Shotgun", "Launcher"])
+        # Uniforme Auswahl ueber alle Sekundaerwaffen: jede Waffe hat gleiche Chance
+        # (vorher: erst Kategorie 25/25/25/25, dann Waffe -> Pistolen bevorzugt weil weniger Optionen)
+        all_secondaries = (
+            self.pistols_weapons
+            + self.auto_pistols_weapons
+            + self.shotgun_weapons
+            + self.launchers_weapons
+        )
+        weapon = choice(all_secondaries)
+
+        if weapon in self.pistols_weapons:
+            weapon_type = "Pistol"
+        elif weapon in self.auto_pistols_weapons:
+            weapon_type = "Machine Pistol"
+        elif weapon in self.shotgun_weapons:
+            weapon_type = "Shotgun"
+        elif weapon in self.launchers_weapons:
+            weapon_type = "Launcher"
+        else:
+            weapon_type = "Unknown"
 
         if weapon_type == "Pistol":
-            weapon = choice(self.pistols_weapons)
             if weapon == "DESERT EAGLE":
                 # Für DESERT EAGLE: Bei perk1 == "Bling" werden nur Akimbo, Tactical Knife und FMJ zugelassen
                 if perk1 == "Bling":
@@ -461,7 +479,6 @@ class RandomClass:
                 attachment_dict = self.pistols_attachments
 
         elif weapon_type == "Machine Pistol":
-            weapon = choice(self.auto_pistols_weapons)
             if weapon == "TMP":
                 is_TMP = True
                 attachment_dict = {
@@ -477,14 +494,12 @@ class RandomClass:
                 attachment_dict = self.auto_pistols_attachments
 
         elif weapon_type == "Shotgun":
-            weapon = choice(self.shotgun_weapons)
             if weapon in ["MODEL 1887", "RANGER"]:
                 attachment_dict = self.shotgun_attachments_akimbo
             else:
                 attachment_dict = self.shotgun_attachments
 
         elif weapon_type == "Launcher":
-            weapon = choice(self.launchers_weapons)
             selection_counts_global[weapon] += 1
             return weapon
 

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Training - Rate{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <div class="rate-header">
+    <div>
+      <h1>Training Mode</h1>
+      <p id="rate-progress">Generiere Klassen - bewerte am Fliessband.</p>
+    </div>
+    <div class="rate-filters">
+      <span id="today-counter" class="counter-chip">Heute: 0</span>
+    </div>
+  </div>
+</header>
+
+<article id="rate-card" class="rate-card"></article>
+
+<div class="rate-nav">
+  <button type="button" id="btn-skip" class="secondary">Naechste &rarr;</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const rateCard = document.getElementById('rate-card');
+const todayCounter = document.getElementById('today-counter');
+const btnSkip = document.getElementById('btn-skip');
+
+let currentCard = null;
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderCard(card) {
+  if (!card) { rateCard.innerHTML = ''; return; }
+  const c = card.class;
+  rateCard.innerHTML = `
+    <header><strong>Generierte Klasse</strong></header>
+    <div class="class-grid">
+      <div><span class="k">Primary</span><span class="v">${escapeHtml(c.primary)}</span></div>
+      <div><span class="k">Secondary</span><span class="v">${escapeHtml(c.secondary)}</span></div>
+      <div><span class="k">Equipment</span><span class="v">${escapeHtml(c.equipment)}</span></div>
+      <div><span class="k">Spezialgranate</span><span class="v">${escapeHtml(c.special_grenade)}</span></div>
+      <div><span class="k">Perk 1</span><span class="v">${escapeHtml(c.perk1)}</span></div>
+      <div><span class="k">Perk 2</span><span class="v">${escapeHtml(c.perk2)}</span></div>
+      <div><span class="k">Perk 3</span><span class="v">${escapeHtml(c.perk3)}</span></div>
+    </div>
+    <div class="score-row">
+      <span class="score-label">Aktueller Score</span>
+      <span class="score-big">${card.current_score}</span>
+      <span class="score-max">/ 61</span>
+    </div>
+    <div class="quick-buttons">
+      <button type="button" class="btn-low" data-judgment="low">Zu niedrig</button>
+      <button type="button" class="btn-fair" data-judgment="fair">Passt</button>
+      <button type="button" class="btn-high" data-judgment="high">Zu hoch</button>
+    </div>
+    <details class="slider-wrap">
+      <summary>Genauer Score-Vorschlag</summary>
+      <div class="slider-inner">
+        <input type="range" id="score-slider" min="0" max="61" value="${card.current_score}">
+        <span id="slider-value">${card.current_score}</span>
+        <button type="button" id="btn-submit-slider">Submit</button>
+      </div>
+    </details>
+  `;
+  rateCard.querySelectorAll('.quick-buttons button').forEach(b => {
+    b.addEventListener('click', () => submitRating(b.dataset.judgment, null));
+  });
+  const slider = document.getElementById('score-slider');
+  const sliderVal = document.getElementById('slider-value');
+  slider.addEventListener('input', () => sliderVal.textContent = slider.value);
+  document.getElementById('btn-submit-slider').addEventListener('click', () => {
+    const val = parseInt(slider.value, 10);
+    let judgment = 'fair';
+    if (val < card.current_score) judgment = 'high';
+    else if (val > card.current_score) judgment = 'low';
+    submitRating(judgment, val);
+  });
+}
+
+async function loadNext() {
+  const r = await fetch('/rate/api/next?mode=training');
+  const data = await r.json();
+  if (!data.ok) return;
+  currentCard = data.card;
+  renderCard(currentCard);
+}
+
+async function updateCounter() {
+  const r = await fetch('/rate/api/stats');
+  const data = await r.json();
+  if (data.ok) todayCounter.textContent = `Heute: ${data.my_today}`;
+}
+
+async function submitRating(judgment, suggested) {
+  if (!currentCard) return;
+  await fetch('/rate/api/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      class: currentCard.class,
+      current_score: currentCard.current_score,
+      judgment: judgment,
+      suggested_score: suggested,
+      source: 'training',
+    }),
+  });
+  await Promise.all([loadNext(), updateCounter()]);
+}
+
+btnSkip.addEventListener('click', loadNext);
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '1') rateCard.querySelector('[data-judgment="low"]')?.click();
+  else if (e.key === '2') rateCard.querySelector('[data-judgment="fair"]')?.click();
+  else if (e.key === '3') rateCard.querySelector('[data-judgment="high"]')?.click();
+  else if (e.key === 'n' || e.key === 'ArrowRight') btnSkip.click();
+});
+
+loadNext();
+updateCounter();
+</script>
+{% endblock %}

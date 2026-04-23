@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Rating-Analyse{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Rating-Analyse</h1>
+  <p>Aggregation aller Bewertungen. Pro User+Klasse zaehlt die letzte Bewertung. <strong>{{ total_ratings }}</strong> Datensaetze.</p>
+</header>
+
+<article>
+  <header>
+    <strong>Komponenten-Bias</strong>
+  </header>
+  <p class="muted small">
+    <em>Bewertung</em>: +1 = zu niedrig (Score sollte hoch), 0 = passt, -1 = zu hoch (Score sollte runter). Delta kommt aus Slider-Vorschlaegen.
+  </p>
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Kategorie</th>
+          <th>Name</th>
+          <th class="num">Ratings</th>
+          <th class="num">&Oslash; Bewertung</th>
+          <th class="num">&Oslash; Delta</th>
+          <th>Tendenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="muted small">{{ row.category }}</td>
+          <td><strong>{{ row.name }}</strong></td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num {% if row.avg_judgment > 0.25 %}low{% elif row.avg_judgment < -0.25 %}high{% endif %}">{{ row.avg_judgment }}</td>
+          <td class="num">{% if row.avg_delta is not none %}{{ '{:+.1f}'.format(row.avg_delta) }}{% else %}-{% endif %}</td>
+          <td class="muted small">{{ row.bias }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Noch keine Bewertungen vorhanden.</p>
+  {% endif %}
+</article>
+
+<p><a href="{{ url_for('rate_home') }}">&larr; Zurueck</a></p>
+{% endblock %}

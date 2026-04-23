@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Nicht berechtigt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Nicht berechtigt</h1>
+  <p>Dieser Bereich ist nur fuer den Admin zugaenglich.</p>
+</header>
+<p><a href="{{ url_for('rate_home') }}">&larr; Zurueck</a></p>
+{% endblock %}

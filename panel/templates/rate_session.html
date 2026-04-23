@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Session Review - Rate{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <div class="rate-header">
+    <div>
+      <h1>Session Review</h1>
+      <p id="rate-progress">Lade...</p>
+    </div>
+    <div class="rate-filters">
+      <label for="date-filter">Datum</label>
+      <select id="date-filter">
+        <option value="today">Heute</option>
+        <option value="yesterday">Gestern</option>
+        <option value="7days">Letzte 7 Tage</option>
+        <option value="all">Alle</option>
+      </select>
+      <label for="unrated-only" class="checkbox-label">
+        <input type="checkbox" id="unrated-only" checked>
+        Nur ungeratete
+      </label>
+    </div>
+  </div>
+</header>
+
+<article id="rate-card" class="rate-card"></article>
+
+<div class="rate-nav">
+  <button type="button" id="btn-prev" class="secondary">&larr; Zurueck</button>
+  <button type="button" id="btn-skip" class="secondary">Skip &rarr;</button>
+</div>
+
+<div id="rate-empty" class="empty-state" hidden>
+  <p>Keine Klassen zum bewerten in diesem Zeitraum.</p>
+  <p><a href="{{ url_for('rate_home') }}">Zurueck zur Uebersicht</a></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MODE = "session";
+const rateCard = document.getElementById('rate-card');
+const progress = document.getElementById('rate-progress');
+const emptyEl = document.getElementById('rate-empty');
+const dateFilter = document.getElementById('date-filter');
+const unratedOnly = document.getElementById('unrated-only');
+const btnPrev = document.getElementById('btn-prev');
+const btnSkip = document.getElementById('btn-skip');
+
+let cursor = 0;
+let total = 0;
+let currentCard = null;
+
+function renderCard(card) {
+  if (!card) {
+    rateCard.innerHTML = '';
+    rateCard.hidden = true;
+    emptyEl.hidden = false;
+    progress.textContent = '';
+    return;
+  }
+  emptyEl.hidden = true;
+  rateCard.hidden = false;
+  const c = card.class;
+  const meta = card.rolled_by
+    ? `Gerollt von <strong>${escapeHtml(card.rolled_by)}</strong> am ${escapeHtml(card.rolled_at.replace('T', ' ').slice(0, 16))}`
+    : '';
+  rateCard.innerHTML = `
+    <header><strong>Klasse</strong></header>
+    ${meta ? `<p class="muted small">${meta}</p>` : ''}
+    <div class="class-grid">
+      <div><span class="k">Primary</span><span class="v">${escapeHtml(c.primary)}</span></div>
+      <div><span class="k">Secondary</span><span class="v">${escapeHtml(c.secondary)}</span></div>
+      <div><span class="k">Equipment</span><span class="v">${escapeHtml(c.equipment)}</span></div>
+      <div><span class="k">Spezialgranate</span><span class="v">${escapeHtml(c.special_grenade)}</span></div>
+      <div><span class="k">Perk 1</span><span class="v">${escapeHtml(c.perk1)}</span></div>
+      <div><span class="k">Perk 2</span><span class="v">${escapeHtml(c.perk2)}</span></div>
+      <div><span class="k">Perk 3</span><span class="v">${escapeHtml(c.perk3)}</span></div>
+    </div>
+    <div class="score-row">
+      <span class="score-label">Aktueller Score</span>
+      <span class="score-big">${card.current_score}</span>
+      <span class="score-max">/ 61</span>
+    </div>
+    <div class="quick-buttons">
+      <button type="button" class="btn-low" data-judgment="low">Zu niedrig</button>
+      <button type="button" class="btn-fair" data-judgment="fair">Passt</button>
+      <button type="button" class="btn-high" data-judgment="high">Zu hoch</button>
+    </div>
+    <details class="slider-wrap">
+      <summary>Genauer Score-Vorschlag</summary>
+      <div class="slider-inner">
+        <input type="range" id="score-slider" min="0" max="61" value="${card.current_score}">
+        <span id="slider-value">${card.current_score}</span>
+        <button type="button" id="btn-submit-slider">Submit</button>
+      </div>
+    </details>
+  `;
+
+  rateCard.querySelectorAll('.quick-buttons button').forEach(b => {
+    b.addEventListener('click', () => submitRating(b.dataset.judgment, null));
+  });
+  const slider = document.getElementById('score-slider');
+  const sliderVal = document.getElementById('slider-value');
+  slider.addEventListener('input', () => sliderVal.textContent = slider.value);
+  document.getElementById('btn-submit-slider').addEventListener('click', () => {
+    const val = parseInt(slider.value, 10);
+    let judgment = 'fair';
+    if (val < card.current_score) judgment = 'high';
+    else if (val > card.current_score) judgment = 'low';
+    submitRating(judgment, val);
+  });
+
+  progress.textContent = total > 0 ? `${cursor + 1} / ${total}` : 'Keine Daten';
+  btnPrev.disabled = cursor <= 0;
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadNext() {
+  const params = new URLSearchParams({
+    mode: MODE,
+    date: dateFilter.value,
+    unrated: unratedOnly.checked ? 'true' : 'false',
+    cursor: cursor,
+  });
+  const r = await fetch(`/rate/api/next?${params}`);
+  const data = await r.json();
+  if (!data.ok) return;
+  total = data.total || 0;
+  cursor = data.index || 0;
+  currentCard = data.card;
+  renderCard(currentCard);
+}
+
+async function submitRating(judgment, suggested) {
+  if (!currentCard) return;
+  await fetch('/rate/api/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      class: currentCard.class,
+      current_score: currentCard.current_score,
+      judgment: judgment,
+      suggested_score: suggested,
+      source: 'session',
+    }),
+  });
+  // Wenn "Nur ungeratete" aktiv, aktueller bleibt derselbe Cursor weil rating ihn aus Liste nimmt
+  // Sonst auf naechsten
+  if (!unratedOnly.checked) cursor++;
+  await loadNext();
+}
+
+btnPrev.addEventListener('click', async () => {
+  if (cursor > 0) cursor--;
+  await loadNext();
+});
+btnSkip.addEventListener('click', async () => {
+  cursor++;
+  await loadNext();
+});
+dateFilter.addEventListener('change', async () => {
+  cursor = 0;
+  await loadNext();
+});
+unratedOnly.addEventListener('change', async () => {
+  cursor = 0;
+  await loadNext();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === '1') rateCard.querySelector('[data-judgment="low"]')?.click();
+  else if (e.key === '2') rateCard.querySelector('[data-judgment="fair"]')?.click();
+  else if (e.key === '3') rateCard.querySelector('[data-judgment="high"]')?.click();
+  else if (e.key === 'n' || e.key === 'ArrowRight') btnSkip.click();
+  else if (e.key === 'p' || e.key === 'ArrowLeft') btnPrev.click();
+});
+
+loadNext();
+</script>
+{% endblock %}

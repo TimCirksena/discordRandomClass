@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Login fehlgeschlagen{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Login fehlgeschlagen</h1>
+  <p>Die Discord-Anmeldung konnte nicht abgeschlossen werden. Versuch's nochmal.</p>
+</header>
+<p><a href="{{ url_for('auth_login') }}" role="button">Erneut versuchen</a></p>
+{% endblock %}

@@ -11,6 +11,21 @@ import config as app_config
 STATS_DIR = os.path.join(os.path.dirname(__file__), "stats")
 HISTORY_FILE = os.path.join(STATS_DIR, "history.jsonl")
 NAMES_FILE = os.path.join(STATS_DIR, "user_names.json")
+RATINGS_FILE = os.path.join(STATS_DIR, "ratings.jsonl")
+
+
+def class_fingerprint(class_data: dict) -> str:
+    """Deterministischer Fingerprint einer Klasse. Gleiche Kombi -> gleicher Fingerprint."""
+    parts = [
+        class_data.get("primary", ""),
+        class_data.get("secondary", ""),
+        class_data.get("equipment", ""),
+        class_data.get("special_grenade", ""),
+        class_data.get("perk1", ""),
+        class_data.get("perk2", ""),
+        class_data.get("perk3", ""),
+    ]
+    return "|".join(parts)
 
 
 def _today_file() -> str:
@@ -106,6 +121,74 @@ def _remember_name(user_id: int, display_name: str):
     if names.get(uid) != display_name:
         names[uid] = display_name
         _save_json(NAMES_FILE, names)
+
+
+def record_rating(
+    rater_id: str,
+    rater_name: str,
+    class_data: dict,
+    current_score: int,
+    judgment: str,
+    suggested_score: int | None = None,
+    source: str = "session",
+):
+    """Append a rating to ratings.jsonl. Jede Bewertung wird als eigene Zeile gespeichert.
+
+    judgment: 'low', 'fair' oder 'high'.
+    source:   'session' (aus History) oder 'training' (generierte Klasse).
+    """
+    if judgment not in ("low", "fair", "high"):
+        return
+    entry = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "rater_id": str(rater_id),
+        "rater_name": rater_name,
+        "fingerprint": class_fingerprint(class_data),
+        "class": {
+            "primary": class_data.get("primary", ""),
+            "secondary": class_data.get("secondary", ""),
+            "equipment": class_data.get("equipment", ""),
+            "special_grenade": class_data.get("special_grenade", ""),
+            "perk1": class_data.get("perk1", ""),
+            "perk2": class_data.get("perk2", ""),
+            "perk3": class_data.get("perk3", ""),
+        },
+        "current_score": int(current_score),
+        "judgment": judgment,
+        "suggested_score": int(suggested_score) if suggested_score is not None else None,
+        "source": source,
+    }
+    os.makedirs(STATS_DIR, exist_ok=True)
+    with open(RATINGS_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def read_ratings() -> list:
+    if not os.path.exists(RATINGS_FILE):
+        return []
+    entries = []
+    with open(RATINGS_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def ratings_by_user_fingerprint() -> dict:
+    """Returns latest rating per (user_id, fingerprint) -> rating entry.
+    So dedupen wir Mehrfach-Bewertungen derselben Klasse durch denselben User."""
+    latest: dict[tuple[str, str], dict] = {}
+    for r in read_ratings():
+        key = (r.get("rater_id", ""), r.get("fingerprint", ""))
+        existing = latest.get(key)
+        if existing is None or r.get("ts", "") > existing.get("ts", ""):
+            latest[key] = r
+    return latest
 
 
 def read_history(limit: int = 50) -> list:

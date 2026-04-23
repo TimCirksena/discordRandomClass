@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Rate - Herr Herbert Zufallsklasse{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Rate</h1>
+  <p>Klassen bewerten und das Scoring-Model kalibrieren.</p>
+</header>
+
+<div class="grid-2">
+  <article>
+    <header><strong>Session Review</strong></header>
+    <p>Durchgeh die heutigen Rolls aus der Bot-History und bewerte die vergebenen Scores.</p>
+    <p><a href="{{ url_for('rate_session') }}" role="button">Session starten</a></p>
+  </article>
+  <article>
+    <header><strong>Training</strong></header>
+    <p>Bewerte generierte Zufallsklassen am Fliessband, um das Scoring breit zu kalibrieren.</p>
+    <p><a href="{{ url_for('rate_train') }}" role="button">Training starten</a></p>
+  </article>
+</div>
+
+<article>
+  <header><strong>Deine Statistik</strong></header>
+  <ul class="kv-list">
+    <li><span>Heute bewertet</span><strong>{{ my_today }}</strong></li>
+    <li><span>Insgesamt bewertet</span><strong>{{ my_total }}</strong></li>
+    <li><span>Community-Ratings gesamt</span><strong>{{ total_ratings }}</strong></li>
+  </ul>
+</article>
+
+{% if is_admin %}
+<article>
+  <header><strong>Admin</strong></header>
+  <p><a href="{{ url_for('rate_analysis') }}">Analyse-Seite oeffnen &rarr;</a></p>
+</article>
+{% endif %}
+{% endblock %}

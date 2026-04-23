@@ -22,6 +22,13 @@
   <ul>
     <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Steuerung</a></li>
     <li><a href="{{ url_for('stats_page') }}" class="{% if request.endpoint == 'stats_page' %}active{% endif %}">Stats</a></li>
+    <li><a href="{{ url_for('rate_home') }}" class="{% if request.endpoint and request.endpoint.startswith('rate') %}active{% endif %}">Rate</a></li>
+    {% if current_user %}
+    <li class="user-chip">
+      <span class="user-name">{{ current_user.global_name }}</span>
+      <a href="{{ url_for('auth_logout') }}" class="logout" title="Logout">&times;</a>
+    </li>
+    {% endif %}
   </ul>
 </nav>
 <main class="container">
