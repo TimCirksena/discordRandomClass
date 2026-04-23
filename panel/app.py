@@ -42,6 +42,9 @@ from playerstats import (  # noqa: E402
     read_ratings,
     ratings_by_user_fingerprint,
     class_fingerprint,
+    record_haudentim_score,
+    haudentim_leaderboard,
+    haudentim_user_best,
 )
 import randomClass as rc_module  # noqa: E402
 from scoringmodel import calculate_class_score, get_score_breakdown  # noqa: E402
@@ -785,6 +788,57 @@ def rate_api_stats():
     my_today = sum(1 for r in all_ratings if r.get("rater_id") == user_id and r.get("ts", "")[:10] == today_str)
     my_total = sum(1 for r in all_ratings if r.get("rater_id") == user_id)
     return jsonify({"ok": True, "my_today": my_today, "my_total": my_total, "total": len(all_ratings)})
+
+
+# ==================== HAU DEN TIM (Minigame) ====================
+
+@app.route("/haudentim")
+@require_login
+def haudentim_page():
+    return render_template("haudentim.html")
+
+
+@app.route("/haudentim/api/submit", methods=["POST"])
+@require_login
+@limiter.limit("30/minute")
+def haudentim_submit():
+    data = request.get_json(silent=True) or {}
+    try:
+        time_ms = int(data.get("time_ms", 0))
+        clicks = int(data.get("clicks", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "invalid payload"}), 400
+
+    # Anti-Cheat: offensichtliche Manipulation filtern
+    if time_ms < 800:
+        return jsonify({"ok": False, "error": "zu schnell um echt zu sein"}), 400
+    if time_ms > 120000:
+        return jsonify({"ok": False, "error": "zu lang (AFK?)"}), 400
+    if clicks < 10 or clicks > 500:
+        return jsonify({"ok": False, "error": "klick-zahl unrealistisch"}), 400
+    # Mehr als 20 klicks/sec sustained ist nicht menschlich
+    if clicks / (time_ms / 1000.0) > 20:
+        return jsonify({"ok": False, "error": "zu schnell geklickt"}), 400
+
+    user = session["user"]
+    name = user.get("global_name") or user.get("username", "") or ""
+    record_haudentim_score(user["id"], name, time_ms, clicks)
+    log.info(f"HAUDENTIM {name} ({user['id']}): {time_ms}ms in {clicks} clicks")
+    return jsonify({"ok": True})
+
+
+@app.route("/haudentim/api/leaderboard")
+@require_login
+def haudentim_api_leaderboard():
+    top = haudentim_leaderboard(limit=20)
+    me = haudentim_user_best(session["user"]["id"])
+    my_rank = None
+    if me is not None:
+        for i, row in enumerate(top, start=1):
+            if row.get("user_id") == me.get("user_id"):
+                my_rank = i
+                break
+    return jsonify({"ok": True, "top": top, "me": me, "my_rank": my_rank})
 
 
 if __name__ == "__main__":

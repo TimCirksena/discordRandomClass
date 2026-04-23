@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Hau den Tim — Minigame{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Hau den Tim</h1>
+  <p>Klick Tim so schnell wie möglich in die Röhre. Zeit wird auf Millisekunde gestoppt.</p>
+</header>
+
+<div class="htx-layout">
+  <div class="htx-stage" id="stage">
+    <div class="htx-hud">
+      <div class="htx-hud-row">
+        <span class="htx-label">Zeit</span>
+        <span class="htx-value" id="hud-time">0.000 s</span>
+      </div>
+      <div class="htx-hud-row">
+        <span class="htx-label">Klicks</span>
+        <span class="htx-value" id="hud-clicks">0</span>
+      </div>
+      <div class="htx-progress">
+        <div class="htx-progress-fill" id="hud-progress"></div>
+      </div>
+    </div>
+
+    <img id="tim" class="htx-tim" src="{{ url_for('static', filename='haudentim/tim.png') }}" alt="Tim" draggable="false">
+    <img id="pipe" class="htx-pipe" src="{{ url_for('static', filename='haudentim/pipe.webp') }}" alt="Röhre" draggable="false">
+
+    <div class="htx-overlay" id="overlay-idle">
+      <div class="htx-card">
+        <h2>Bereit?</h2>
+        <p>Klicke Tim so schnell wie möglich in die Röhre!</p>
+        <button type="button" id="btn-start" class="htx-btn-primary">Spiel starten</button>
+      </div>
+    </div>
+
+    <div class="htx-overlay" id="overlay-done" hidden>
+      <div class="htx-card">
+        <h2 id="done-title">Geschafft!</h2>
+        <p class="htx-big-time" id="done-time">0.000 s</p>
+        <p class="htx-sub" id="done-detail">0 Klicks · gerade abgeschickt...</p>
+        <button type="button" id="btn-restart" class="htx-btn-primary">Nochmal</button>
+      </div>
+    </div>
+  </div>
+
+  <article class="htx-leaderboard">
+    <header><strong>Bestzeiten</strong></header>
+    <p class="muted small" id="lb-my">Lade...</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Spieler</th>
+            <th class="num">Zeit</th>
+            <th class="num">Klicks</th>
+            <th class="num">Datum</th>
+          </tr>
+        </thead>
+        <tbody id="lb-body">
+          <tr><td colspan="5" class="muted small">Lade Leaderboard...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</div>
+
+<audio id="bg-audio" src="{{ url_for('static', filename='haudentim/bg.mp3') }}" loop preload="auto"></audio>
+<audio id="sfx-win" src="{{ url_for('static', filename='haudentim/pipe_done.mp3') }}" preload="auto"></audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // ---------- Config ----------
+  const FLOAT_RATE = 0.25;     // 25%/s Auftrieb
+  const CLICK_POWER = 0.045;   // +4.5% pro Treffer
+  const SWAY_AMP = 40;         // px horizontal Wackel-Amplitude
+  const SWAY_FREQ_BASE = 0.9;  // rad/s
+  const SWAY_FREQ_RAMP = 1.5;  // zusätzlich bei p=1
+
+  // ---------- DOM ----------
+  const stage = document.getElementById('stage');
+  const tim = document.getElementById('tim');
+  const pipe = document.getElementById('pipe');
+  const hudTime = document.getElementById('hud-time');
+  const hudClicks = document.getElementById('hud-clicks');
+  const hudProgress = document.getElementById('hud-progress');
+  const overlayIdle = document.getElementById('overlay-idle');
+  const overlayDone = document.getElementById('overlay-done');
+  const doneTime = document.getElementById('done-time');
+  const doneDetail = document.getElementById('done-detail');
+  const doneTitle = document.getElementById('done-title');
+  const btnStart = document.getElementById('btn-start');
+  const btnRestart = document.getElementById('btn-restart');
+  const bgAudio = document.getElementById('bg-audio');
+  const sfxWin = document.getElementById('sfx-win');
+  const lbBody = document.getElementById('lb-body');
+  const lbMy = document.getElementById('lb-my');
+
+  // ---------- State ----------
+  let gameState = 'idle';
+  let progress = 0;
+  let clicks = 0;
+  let startTime = 0;
+  let lastFrame = 0;
+  let runStart = 0;
+  let audioCtx = null;
+
+  // ---------- 8-Bit-Click via Web Audio ----------
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  function playClick() {
+    ensureAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 780 + Math.random() * 280;
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.06);
+  }
+
+  // ---------- Render ----------
+  function fmtTime(ms) {
+    return (ms / 1000).toFixed(3) + ' s';
+  }
+
+  function render(t) {
+    tim.style.setProperty('--p', progress.toFixed(4));
+    hudProgress.style.width = (progress * 100).toFixed(1) + '%';
+    if (gameState === 'running') {
+      const runningT = (t - runStart) / 1000;
+      const freq = SWAY_FREQ_BASE + progress * SWAY_FREQ_RAMP;
+      const sway = SWAY_AMP * Math.sin(runningT * freq);
+      tim.style.setProperty('--sway', sway.toFixed(1) + 'px');
+      hudTime.textContent = fmtTime(t - startTime);
+    } else {
+      tim.style.setProperty('--sway', '0px');
+    }
+  }
+
+  function frame(t) {
+    if (!lastFrame) lastFrame = t;
+    const dt = (t - lastFrame) / 1000;
+    lastFrame = t;
+    if (gameState === 'running') {
+      progress = Math.max(0, progress - FLOAT_RATE * dt);
+      if (progress >= 1.0) finish(t);
+    }
+    render(t);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Game-Flow ----------
+  function startGame() {
+    ensureAudio();
+    gameState = 'running';
+    progress = 0;
+    clicks = 0;
+    startTime = performance.now();
+    runStart = startTime;
+    hudClicks.textContent = '0';
+    hudTime.textContent = '0.000 s';
+    overlayIdle.hidden = true;
+    overlayDone.hidden = true;
+    stage.classList.add('running');
+    try { bgAudio.currentTime = 0; bgAudio.volume = 0.5; bgAudio.play(); } catch (e) {}
+  }
+
+  function finish(t) {
+    gameState = 'done';
+    progress = 1;
+    const elapsed = t - startTime;
+    stage.classList.remove('running');
+    try { bgAudio.pause(); } catch (e) {}
+    try { sfxWin.currentTime = 0; sfxWin.volume = 0.7; sfxWin.play(); } catch (e) {}
+    doneTime.textContent = fmtTime(elapsed);
+    doneDetail.textContent = `${clicks} Klicks · wird eingereicht ...`;
+    overlayDone.hidden = false;
+    submitScore(Math.round(elapsed), clicks).then(ok => {
+      doneDetail.textContent = ok
+        ? `${clicks} Klicks · Score gespeichert`
+        : `${clicks} Klicks · Score wurde abgelehnt (zu schnell? Bug?)`;
+      if (ok) loadLeaderboard();
+    });
+  }
+
+  function handleHit(ev) {
+    if (gameState === 'idle') {
+      startGame();
+      return;
+    }
+    if (gameState !== 'running') return;
+    ev.stopPropagation();
+    progress = Math.min(1.0, progress + CLICK_POWER);
+    clicks++;
+    hudClicks.textContent = clicks;
+    playClick();
+    tim.classList.remove('bumped');
+    void tim.offsetWidth; // reflow to restart animation
+    tim.classList.add('bumped');
+    if (progress >= 1.0) finish(performance.now());
+  }
+
+  function handleMiss() {
+    // Optional: kurzer Miss-Feedback, aber leise lassen
+  }
+
+  // ---------- Leaderboard ----------
+  async function loadLeaderboard() {
+    try {
+      const r = await fetch('/haudentim/api/leaderboard');
+      if (!r.ok) return;
+      const data = await r.json();
+      renderLeaderboard(data);
+    } catch (e) {}
+  }
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderLeaderboard(data) {
+    const rows = data.top || [];
+    if (!rows.length) {
+      lbBody.innerHTML = '<tr><td colspan="5" class="muted small">Noch keine Einträge. Sei der Erste!</td></tr>';
+      lbMy.textContent = 'Noch keine Bestzeit.';
+      return;
+    }
+    const myUserId = "{{ current_user.id if current_user else '' }}";
+    lbBody.innerHTML = rows.map((r, i) => {
+      const isMe = String(r.user_id) === myUserId;
+      const date = (r.ts || '').slice(0, 16).replace('T', ' ');
+      return `<tr class="${isMe ? 'me' : ''}">
+        <td class="num">${i + 1}</td>
+        <td>${escapeHtml(r.name || ('User ' + (r.user_id || '').slice(-4)))}</td>
+        <td class="num"><strong>${(r.time_ms / 1000).toFixed(3)} s</strong></td>
+        <td class="num muted small">${r.clicks}</td>
+        <td class="num muted small">${date}</td>
+      </tr>`;
+    }).join('');
+    if (data.me) {
+      const t = (data.me.time_ms / 1000).toFixed(3);
+      const rank = data.my_rank ? `Platz ${data.my_rank}` : '';
+      lbMy.textContent = `Deine Bestzeit: ${t} s ${rank ? '· ' + rank : ''}`;
+    } else {
+      lbMy.textContent = 'Noch keine Bestzeit.';
+    }
+  }
+
+  async function submitScore(time_ms, clicks) {
+    try {
+      const r = await fetch('/haudentim/api/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ time_ms, clicks }),
+      });
+      const data = await r.json().catch(() => ({}));
+      return !!data.ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ---------- Events ----------
+  tim.addEventListener('click', handleHit);
+  tim.addEventListener('touchstart', function(e) { e.preventDefault(); handleHit(e); }, { passive: false });
+  stage.addEventListener('click', function(e) {
+    if (gameState === 'idle' && e.target !== tim) startGame();
+    else if (gameState !== 'idle' && e.target !== tim) handleMiss();
+  });
+  btnStart.addEventListener('click', function(e) { e.stopPropagation(); startGame(); });
+  btnRestart.addEventListener('click', function(e) {
+    e.stopPropagation();
+    overlayDone.hidden = true;
+    overlayIdle.hidden = false;
+    gameState = 'idle';
+    progress = 0;
+    clicks = 0;
+    hudClicks.textContent = '0';
+    hudTime.textContent = '0.000 s';
+  });
+
+  requestAnimationFrame(frame);
+  loadLeaderboard();
+})();
+</script>
+{% endblock %}

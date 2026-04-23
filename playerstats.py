@@ -12,6 +12,7 @@ STATS_DIR = os.path.join(os.path.dirname(__file__), "stats")
 HISTORY_FILE = os.path.join(STATS_DIR, "history.jsonl")
 NAMES_FILE = os.path.join(STATS_DIR, "user_names.json")
 RATINGS_FILE = os.path.join(STATS_DIR, "ratings.jsonl")
+HAUDENTIM_FILE = os.path.join(STATS_DIR, "haudentim_scores.jsonl")
 
 
 def class_fingerprint(class_data: dict) -> str:
@@ -212,6 +213,71 @@ def ratings_by_user_fingerprint() -> dict:
         if existing is None or r.get("ts", "") > existing.get("ts", ""):
             latest[key] = r
     return latest
+
+
+def record_haudentim_score(user_id: str, name: str, time_ms: int, clicks: int):
+    """Append einen Lauf in haudentim_scores.jsonl."""
+    entry = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "user_id": str(user_id),
+        "name": name,
+        "time_ms": int(time_ms),
+        "clicks": int(clicks),
+    }
+    os.makedirs(STATS_DIR, exist_ok=True)
+    with open(HAUDENTIM_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    _remember_name(user_id, name)
+
+
+def _read_haudentim_all() -> list:
+    if not os.path.exists(HAUDENTIM_FILE):
+        return []
+    entries = []
+    with open(HAUDENTIM_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def haudentim_leaderboard(limit: int = 20) -> list:
+    """Beste Zeit pro User, aufsteigend sortiert."""
+    entries = _read_haudentim_all()
+    names = _load_json(NAMES_FILE)
+    best: dict[str, dict] = {}
+    for e in entries:
+        uid = e.get("user_id", "")
+        t = e.get("time_ms", 0)
+        if not uid or t <= 0:
+            continue
+        existing = best.get(uid)
+        if existing is None or t < existing["time_ms"]:
+            best[uid] = dict(e)
+    # Namen aus user_names.json ergänzen wenn leer
+    rows = []
+    for uid, e in best.items():
+        if not e.get("name") and uid in names:
+            e["name"] = names[uid]
+        rows.append(e)
+    rows.sort(key=lambda r: r["time_ms"])
+    return rows[:limit]
+
+
+def haudentim_user_best(user_id: str) -> dict | None:
+    uid = str(user_id)
+    best = None
+    for e in _read_haudentim_all():
+        if str(e.get("user_id", "")) != uid:
+            continue
+        if best is None or e.get("time_ms", 10**9) < best.get("time_ms", 10**9):
+            best = e
+    return best
 
 
 def read_history(limit: int = 50) -> list:
