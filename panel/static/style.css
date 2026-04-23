@@ -314,9 +314,9 @@ td.rerolled-cell {
 .htx-pipe {
   position: absolute;
   left: 50%;
-  bottom: 4%;
+  bottom: 3%;
   transform: translateX(-50%);
-  width: 45%;
+  width: 36%;
   z-index: 10;
   pointer-events: none;
   filter: drop-shadow(0 6px 14px rgba(0,0,0,0.4));
@@ -328,16 +328,16 @@ td.rerolled-cell {
   --sway: 0px;
   position: absolute;
   left: 50%;
-  bottom: calc(4% + 170px);
-  width: 34%;
-  max-width: 220px;
+  bottom: calc(3% + 260px);
+  width: 30%;
+  max-width: 200px;
   border-radius: 50%;
   z-index: 5;
   transform-origin: center 75%;
   transform:
     translateX(calc(-50% + var(--sway)))
-    translateY(calc(var(--p) * 180px))
-    scale(calc(1 - var(--p) * 0.55));
+    translateY(calc(var(--p) * 280px))
+    scale(calc(1 - var(--p) * 0.75));
   transition: transform 70ms linear;
   box-shadow: 0 10px 28px rgba(0,0,0,0.45);
   user-select: none;
