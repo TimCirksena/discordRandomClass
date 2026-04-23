@@ -15,6 +15,7 @@ from voice import speak_in_channel
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 ADMIN_ID: Final[int] = 424477646555185162
+ROAST_TARGET_ID: Final[int] = 683097369440813056
 FILTER_IDS: Final[set] = {
     ADMIN_ID,
     695156653770932274,
@@ -41,7 +42,6 @@ _all_maps = list(_rc.RandomClass().maps)
 available_maps = list(_all_maps)
 
 MAPS_DIR = os.path.join(os.path.dirname(__file__), "maps")
-
 
 # ==================== SLASH COMMANDS (ephemeral) ====================
 
@@ -110,7 +110,6 @@ async def set_filter(
 
     await interaction.response.send_message(msg, ephemeral=False)
 
-
 @tree.command(name="reset", description="[Admin] Setze Filter zurueck")
 async def reset_filter(interaction: discord.Interaction):
     """Setzt Filter zurueck (Admins: alles, Filter-User: nur Waffenkategorien)."""
@@ -134,7 +133,6 @@ async def reset_filter(interaction: discord.Interaction):
         active_filters["excluded"] = []
         await interaction.response.send_message("Waffenkategorie-Filter wurden zurueckgesetzt.", ephemeral=False)
 
-
 @tree.command(name="random", description="Generiere eine zufällige MW2 Klasse")
 async def random_class(interaction: discord.Interaction):
     """Animated slot-machine reveal - nur fuer den User sichtbar."""
@@ -155,7 +153,7 @@ async def random_class(interaction: discord.Interaction):
         return
 
     # Stats tracken
-    record_roll(user_id, class_data, total_score)
+    record_roll(user_id, class_data, total_score, display_name=interaction.user.display_name)
 
     # Step 0: Loading embed mit ???
     loading = create_loading_embed(user_id)
@@ -177,32 +175,63 @@ async def random_class(interaction: discord.Interaction):
     # Step 4: Finales Embed mit Score + Tier-Farbe
     await interaction.edit_original_response(embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id))
 
+    is_roast_target = user_id == ROAST_TARGET_ID
+
     # Bonus-Effekte je nach Tier (Channel-Nachricht + Voice-TTS)
     if total_score > 45:
         await asyncio.sleep(0.5)
-        await interaction.channel.send(
-            f"# \u26a1\U0001f525 LEGENDARY DROP! \U0001f525\u26a1\n"
-            f">>> {interaction.user.mention} hat eine **OVERPOWERED** Klasse gezogen!\n"
-            f"Score: **{total_score}** / 61 \U0001f608"
-        )
-        await speak_in_channel(
-            interaction.guild, interaction.user,
-            f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
-        )
+        if is_roast_target:
+            await interaction.channel.send(
+                f"# \U0001f921 Ausgerechnet DU? \U0001f921\n"
+                f">>> {interaction.user.mention} hat ne Legendary gezogen... verschwendet an den grössten Bot auf dem Server.\n"
+                f"Score: **{total_score}** / 61 - du wirst trotzdem 1/20 gehen, du Opfer."
+            )
+            await speak_in_channel(
+                interaction.guild, interaction.user,
+                f"{interaction.user.display_name} hat ne Legendary gezogen, aber mal ehrlich - der wird die Klasse trotzdem versauen! Pure Glückssache amk!"
+            )
+        else:
+            await interaction.channel.send(
+                f"# \u26a1\U0001f525 LEGENDARY DROP! \U0001f525\u26a1\n"
+                f">>> {interaction.user.mention} hat eine **OVERPOWERED** Klasse gezogen!\n"
+                f"Score: **{total_score}** / 61 \U0001f608"
+            )
+            await speak_in_channel(
+                interaction.guild, interaction.user,
+                f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
+            )
     elif total_score < 18:
         await asyncio.sleep(0.5)
+        if is_roast_target:
+            await interaction.channel.send(
+                f"# \U0001f480 PERFECT MATCH \U0001f480\n"
+                f">>> {interaction.user.mention} MÜLL-Klasse für den MÜLL-Spieler! Du Schmock.\n"
+                f"Score: **{total_score}** / 61 - endlich mal ne Klasse die zu deinem Skill passt!"
+            )
+            await speak_in_channel(
+                interaction.guild, interaction.user,
+                f"{interaction.user.display_name} hat ne Müll Klasse gezogen - perfekt für dich du Opfer! Score {total_score} von 61. Bleib lieber in der Lobby du Behindi!"
+            )
+        else:
+            await interaction.channel.send(
+                f"# \U0001f480 Trash Tier... \U0001f480\n"
+                f">>> {interaction.user.mention} hat eine **MÜLL-KLASSE** gezogen, der huso!\n"
+                f"Score: **{total_score}** / 61 \U0001f5d1\ufe0f"
+            )
+            await speak_in_channel(
+                interaction.guild, interaction.user,
+                f"{interaction.user.display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
+            )
+
+    # Extra-Beleidigung fuer Roast-Target bei JEDEM /random (zusaetzlich zum Tier-Effekt)
+    if is_roast_target:
+        await asyncio.sleep(0.3)
         await interaction.channel.send(
-            f"# \U0001f480 Trash Tier... \U0001f480\n"
-            f">>> {interaction.user.mention} hat eine **MÜLL-KLASSE** gezogen, der huso!\n"
-            f"Score: **{total_score}** / 61 \U0001f5d1\ufe0f"
-        )
-        await speak_in_channel(
-            interaction.guild, interaction.user,
-            f"{interaction.user.display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
+            f"Übrigens {interaction.user.mention}: egal was du rollst, du bleibst trotzdem der schlechteste Spieler hier du Hund."
         )
 
 
-@tree.command(name="map", description="Generiere zufaellige Map-Settings")
+@tree.command(name="map", description="Generiere zufällige Map-Settings")
 async def random_map(interaction: discord.Interaction):
     if not available_maps:
         await interaction.response.send_message(

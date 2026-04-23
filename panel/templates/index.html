@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Steuerung - Herr Herbert Zufallsklasse{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Steuerung</h1>
+  <p>Bot starten oder stoppen und Live-Logs einsehen.</p>
+</header>
+
+<div id="flash-container"></div>
+
+<article id="status-card" class="status-card">
+  <span class="status-dot"></span>
+  <span class="status-label" id="status-label">...</span>
+</article>
+
+<article>
+  <form id="action-form">
+    <label for="password">Passwort</label>
+    <input type="password" id="password" name="password" placeholder="Passwort eingeben" required autocomplete="off">
+    <div class="actions">
+      <button type="submit" name="action" value="start" id="btn-start">Bot starten</button>
+      <button type="submit" name="action" value="stop" id="btn-stop" class="stop">Bot stoppen</button>
+    </div>
+  </form>
+</article>
+
+<article>
+  <header><strong>Logs</strong></header>
+  <pre id="logs">laedt...</pre>
+</article>
+{% endblock %}
+
+{% block footer %}Status und Logs aktualisieren sich automatisch{% endblock %}
+
+{% block scripts %}
+<script>
+const statusCard = document.getElementById('status-card');
+const statusLabel = document.getElementById('status-label');
+const logs = document.getElementById('logs');
+const form = document.getElementById('action-form');
+const btnStart = document.getElementById('btn-start');
+const btnStop = document.getElementById('btn-stop');
+const flashContainer = document.getElementById('flash-container');
+
+const STATUS_MAP = {
+  active: { cls: 'on', label: 'Online' },
+  activating: { cls: 'pending', label: 'Startet' },
+  deactivating: { cls: 'pending', label: 'Stoppt' },
+  failed: { cls: 'err', label: 'Fehler' },
+  inactive: { cls: '', label: 'Offline' },
+};
+
+function flash(type, msg) {
+  flashContainer.innerHTML = `<div class="flash ${type}">${msg}</div>`;
+  setTimeout(() => flashContainer.innerHTML = '', 4000);
+}
+
+async function refreshStatus() {
+  try {
+    const r = await fetch('/status');
+    if (!r.ok) return;
+    const data = await r.json();
+    const info = STATUS_MAP[data.status] || { cls: '', label: data.status };
+    statusCard.classList.remove('on', 'err', 'pending');
+    if (info.cls) statusCard.classList.add(info.cls);
+    statusLabel.textContent = info.label;
+    logs.textContent = data.logs;
+  } catch (e) {}
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const action = e.submitter.value;
+  const btn = e.submitter;
+  const originalText = btn.textContent;
+  btn.disabled = true; btnStart.disabled = true; btnStop.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>' + (action === 'start' ? 'Starte' : 'Stoppe');
+  const formData = new FormData(form);
+  formData.set('action', action);
+  try {
+    const r = await fetch('/action', { method: 'POST', body: formData });
+    const data = await r.json();
+    flash(data.ok ? 'ok' : 'error', data.ok ? data.message : data.error);
+  } catch (err) { flash('error', 'Netzwerkfehler'); }
+  finally {
+    btn.textContent = originalText;
+    btn.disabled = false; btnStart.disabled = false; btnStop.disabled = false;
+    setTimeout(refreshStatus, 500);
+    setTimeout(refreshStatus, 2000);
+  }
+});
+
+refreshStatus();
+setInterval(refreshStatus, 4000);
+</script>
+{% endblock %}

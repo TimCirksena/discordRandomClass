@@ -7,6 +7,8 @@ import os
 from datetime import datetime
 
 STATS_DIR = os.path.join(os.path.dirname(__file__), "stats")
+HISTORY_FILE = os.path.join(STATS_DIR, "history.jsonl")
+NAMES_FILE = os.path.join(STATS_DIR, "user_names.json")
 
 
 def _today_file() -> str:
@@ -22,6 +24,7 @@ def _empty_stats():
         "legendary_count": 0,
         "trash_count": 0,
         "weapons": {},
+        "name": "",
     }
 
 
@@ -41,6 +44,7 @@ def _save_json(path: str, data: dict):
 def _load_all_historical() -> dict:
     """Merge all daily stats files into one combined dict."""
     combined = {}
+    names = _load_json(NAMES_FILE)
     if not os.path.exists(STATS_DIR):
         return combined
     for filename in os.listdir(STATS_DIR):
@@ -63,7 +67,63 @@ def _load_all_historical() -> dict:
             c["trash_count"] += stats.get("trash_count", 0)
             for weapon, count in stats.get("weapons", {}).items():
                 c["weapons"][weapon] = c["weapons"].get(weapon, 0) + count
+            if stats.get("name") and not c.get("name"):
+                c["name"] = stats["name"]
+        # Fallback: aus zentraler names-Datei
+        for uid, data in combined.items():
+            if not data.get("name") and uid in names:
+                data["name"] = names[uid]
     return combined
+
+
+def _record_history(user_id: int, display_name: str, class_data: dict, total_score: int):
+    """Append a single roll entry to history.jsonl."""
+    entry = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "user_id": str(user_id),
+        "name": display_name,
+        "primary": class_data.get("primary", ""),
+        "secondary": class_data.get("secondary", ""),
+        "equipment": class_data.get("equipment", ""),
+        "special_grenade": class_data.get("special_grenade", ""),
+        "perk1": class_data.get("perk1", ""),
+        "perk2": class_data.get("perk2", ""),
+        "perk3": class_data.get("perk3", ""),
+        "score": total_score,
+    }
+    os.makedirs(STATS_DIR, exist_ok=True)
+    with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _remember_name(user_id: int, display_name: str):
+    if not display_name:
+        return
+    names = _load_json(NAMES_FILE)
+    uid = str(user_id)
+    if names.get(uid) != display_name:
+        names[uid] = display_name
+        _save_json(NAMES_FILE, names)
+
+
+def read_history(limit: int = 50) -> list:
+    """Returns the last `limit` history entries (newest first)."""
+    if not os.path.exists(HISTORY_FILE):
+        return []
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    entries = []
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+        if len(entries) >= limit:
+            break
+    return entries
 
 
 # In-memory stores
@@ -76,8 +136,8 @@ def _ensure_player(store: dict, user_id: str):
         store[user_id] = _empty_stats()
 
 
-def record_roll(user_id: int, class_data: dict, total_score: int):
-    """Record a roll for today's file and session stats."""
+def record_roll(user_id: int, class_data: dict, total_score: int, display_name: str = ""):
+    """Record a roll for today's file, session stats and history."""
     uid = str(user_id)
 
     for store in (_today, _session):
@@ -93,14 +153,17 @@ def record_roll(user_id: int, class_data: dict, total_score: int):
             s["legendary_count"] += 1
         if total_score < 18:
             s["trash_count"] += 1
+        if display_name:
+            s["name"] = display_name
 
-        # Track primary weapon
         primary = class_data.get("primary", "")
         weapon = primary.split(" with ")[0].strip() if " with " in primary else primary.strip()
         if weapon:
             s["weapons"][weapon] = s["weapons"].get(weapon, 0) + 1
 
     _save_json(_today_file(), _today)
+    _remember_name(user_id, display_name)
+    _record_history(user_id, display_name, class_data, total_score)
 
 
 def get_player_stats(user_id: int) -> tuple[dict, dict]:

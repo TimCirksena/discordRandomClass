@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Stats - Herr Herbert Zufallsklasse{% endblock %}
+
+{% macro top_list(title, data) %}
+<article>
+  <header><strong>{{ title }}</strong></header>
+  {% if data %}
+  {% set max_count = data[0][1] %}
+  <ul class="rank-list">
+    {% for name, count in data %}
+    <li>
+      <span class="rank-name">{{ name }}</span>
+      <span class="rank-bar"><span class="rank-bar-fill" style="width: {{ (count / max_count * 100) | round(1) }}%;"></span></span>
+      <span class="rank-count">{{ count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Noch keine Daten.</p>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Stats</h1>
+  <p>Insgesamt <strong>{{ total_rolls }}</strong> Klassen gezogen.</p>
+</header>
+
+{% if leaderboard %}
+<article>
+  <header><strong>Leaderboard</strong></header>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Spieler</th>
+          <th class="num">Rolls</th>
+          <th class="num">&Oslash; Score</th>
+          <th class="num">Best</th>
+          <th class="num">Worst</th>
+          <th class="num">Legendary</th>
+          <th class="num">Trash</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in leaderboard %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ p.name }}</td>
+          <td class="num">{{ p.rolls }}</td>
+          <td class="num">{{ p.avg }}</td>
+          <td class="num score-legendary">{{ p.best }}</td>
+          <td class="num score-trash">{{ p.worst }}</td>
+          <td class="num">{{ p.legendary }}</td>
+          <td class="num">{{ p.trash }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endif %}
+
+<div class="grid-2">
+  {{ top_list('Top Primaerwaffen', top_primary) }}
+  {{ top_list('Top Sekundaerwaffen', top_secondary) }}
+</div>
+<div class="grid-3">
+  {{ top_list('Perk 1', top_perk1) }}
+  {{ top_list('Perk 2', top_perk2) }}
+  {{ top_list('Perk 3', top_perk3) }}
+</div>
+<div class="grid-2">
+  {{ top_list('Equipment', top_equip) }}
+  {{ top_list('Spezialgranate', top_grenade) }}
+</div>
+
+<article>
+  <header><strong>Letzte Rolls</strong></header>
+  {% if recent %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Zeit</th>
+          <th>Spieler</th>
+          <th>Primary</th>
+          <th>Secondary</th>
+          <th>Perks</th>
+          <th class="num">Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+        <tr class="tier-{{ r.tier }}">
+          <td class="nowrap">
+            <span class="date">{{ r.date }}</span>
+            <span class="time">{{ r.time }}</span>
+          </td>
+          <td>{{ r.name or ('User ' + r.user_id[-4:]) }}</td>
+          <td>{{ r.primary }}</td>
+          <td>{{ r.secondary }}</td>
+          <td class="perks">{{ r.perk1 }} / {{ r.perk2 }} / {{ r.perk3 }}</td>
+          <td class="num score-{{ r.tier }}">{{ r.score }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Noch keine Rolls aufgezeichnet.</p>
+  {% endif %}
+</article>
+{% endblock %}
+
+{% block footer %}Alle Angaben aus der Bot-History&ensp;&middot;&ensp;Stand {{ recent[0].date if recent else '-' }}{% endblock %}
