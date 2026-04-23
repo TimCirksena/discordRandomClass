@@ -22,6 +22,7 @@ SERVICE = "discord-bot"
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
+DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
 ADMIN_DISCORD_ID = os.getenv("ADMIN_DISCORD_ID", "")
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-only-secret-change-me")
 
@@ -56,7 +57,7 @@ oauth.register(
     authorize_url="https://discord.com/oauth2/authorize",
     access_token_url="https://discord.com/api/oauth2/token",
     api_base_url="https://discord.com/api/",
-    client_kwargs={"scope": "identify"},
+    client_kwargs={"scope": "identify guilds"},
 )
 
 
@@ -64,7 +65,10 @@ def require_login(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user" not in session:
-            return redirect(url_for("auth_login", next=request.path))
+            # Fuer JSON/AJAX-Endpoints: 401 statt Redirect
+            if request.path.startswith("/rate/api") or request.accept_mimetypes.best == "application/json":
+                return jsonify({"ok": False, "error": "not logged in"}), 401
+            return redirect(url_for("login_page", next=request.path))
         return f(*args, **kwargs)
     return wrapper
 
@@ -73,7 +77,7 @@ def require_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user" not in session:
-            return redirect(url_for("auth_login", next=request.path))
+            return redirect(url_for("login_page", next=request.path))
         if str(session["user"].get("id", "")) != str(ADMIN_DISCORD_ID):
             return render_template("forbidden.html"), 403
         return f(*args, **kwargs)
@@ -273,33 +277,37 @@ def build_stats_context(user_filter: str = ""):
 
 
 @app.route("/")
+@require_login
 def index():
     return render_template("index.html", status=bot_status(), logs=bot_logs())
 
 
 @app.route("/stats")
+@require_login
 def stats_page():
     user_filter = request.args.get("user", "").strip()
+    # Default auf eingeloggten User wenn kein Filter gesetzt
+    if user_filter == "" and "user" not in request.args:
+        user_filter = session["user"]["id"]
     ctx = build_stats_context(user_filter=user_filter)
     return render_template("stats.html", **ctx)
 
 
 @app.route("/status")
+@require_login
 @limiter.limit("60/minute")
 def status():
     return jsonify({"status": bot_status(), "logs": bot_logs()})
 
 
 @app.route("/action", methods=["POST"])
+@require_login
 @limiter.limit("10/minute;30/hour")
 def action():
     ip = client_ip()
-    ua = request.headers.get("User-Agent", "?")[:120]
-    if not check_password(request.form.get("password", "")):
-        log.warning(f"FAILED auth from {ip} UA={ua}")
-        return jsonify({"ok": False, "error": "Falsches Passwort"}), 403
+    user = session["user"]
     act = request.form.get("action")
-    log.info(f"{(act or 'UNKNOWN').upper()} from {ip} UA={ua}")
+    log.info(f"{(act or 'UNKNOWN').upper()} from {user.get('global_name')} ({user.get('id')}) ip={ip}")
     if act == "start":
         subprocess.run(["sudo", "systemctl", "start", SERVICE], check=False)
         return jsonify({"ok": True, "message": "Bot wird gestartet"})
@@ -316,9 +324,21 @@ def ratelimit_handler(e):
 
 # ==================== AUTH (Discord OAuth) ====================
 
+@app.route("/login")
+def login_page():
+    if "user" in session:
+        return redirect(url_for("index"))
+    return render_template("login.html")
+
+
+@app.route("/access-denied")
+def access_denied():
+    return render_template("access_denied.html"), 403
+
+
 @app.route("/auth/login")
 def auth_login():
-    next_path = request.args.get("next", "/rate")
+    next_path = request.args.get("next", "/")
     session["next_url"] = next_path
     redirect_uri = url_for("auth_callback", _external=True, _scheme="https")
     return oauth.discord.authorize_redirect(redirect_uri)
@@ -328,11 +348,23 @@ def auth_login():
 def auth_callback():
     try:
         token = oauth.discord.authorize_access_token()
-        resp = oauth.discord.get("users/@me", token=token)
-        user = resp.json()
+        user = oauth.discord.get("users/@me", token=token).json()
     except Exception as e:
         log.warning(f"OAuth callback failed: {e}")
         return render_template("auth_error.html"), 400
+
+    # Guild-Membership pruefen
+    try:
+        guilds = oauth.discord.get("users/@me/guilds", token=token).json()
+    except Exception as e:
+        log.warning(f"Guild fetch failed for {user.get('username')}: {e}")
+        guilds = []
+
+    guild_ids = {g.get("id") for g in guilds if isinstance(g, dict)}
+    if DISCORD_GUILD_ID and DISCORD_GUILD_ID not in guild_ids:
+        log.warning(f"Access denied for {user.get('username')} ({user.get('id')}): not in guild {DISCORD_GUILD_ID}")
+        session.pop("user", None)
+        return redirect(url_for("access_denied"))
 
     session["user"] = {
         "id": str(user.get("id", "")),
@@ -340,15 +372,15 @@ def auth_callback():
         "global_name": user.get("global_name") or user.get("username", ""),
         "avatar": user.get("avatar"),
     }
-    log.info(f"Login: {session['user']['global_name']} ({session['user']['id']})")
-    next_url = session.pop("next_url", "/rate")
+    log.info(f"Login OK: {session['user']['global_name']} ({session['user']['id']})")
+    next_url = session.pop("next_url", "/")
     return redirect(next_url)
 
 
 @app.route("/auth/logout")
 def auth_logout():
     session.pop("user", None)
-    return redirect(url_for("index"))
+    return redirect(url_for("login_page"))
 
 
 # ==================== RATING ====================

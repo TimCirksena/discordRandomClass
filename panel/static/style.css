@@ -200,3 +200,64 @@ tr.tier-trash { background: rgba(239, 68, 68, 0.04); }
 td.num.low { color: #22c55e; font-weight: 600; }
 td.num.high { color: #ef4444; font-weight: 600; }
 
+/* Login page */
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(88, 101, 242, 0.12), transparent 40%),
+    radial-gradient(circle at 80% 90%, rgba(34, 197, 94, 0.08), transparent 45%),
+    #0b0d12;
+}
+.login-wrap { width: 100%; max-width: 420px; padding: 1.5rem; }
+.login-card {
+  padding: 2.5rem 2rem;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(20, 22, 28, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  margin: 0 auto 1.25rem;
+  display: block;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 10px 30px rgba(0,0,0,0.3);
+}
+.login-card h1 { font-size: 1.4rem; margin: 0 0 0.4rem; letter-spacing: -0.01em; }
+.login-sub { color: var(--pico-muted-color); font-size: 0.9rem; margin: 0 0 1.75rem; line-height: 1.5; }
+.discord-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.4rem;
+  background: #5865F2;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.discord-btn:hover { background: #4752c4; color: #fff; }
+.discord-btn:active { transform: scale(0.98); }
+.discord-btn svg { flex-shrink: 0; }
+.login-foot { margin: 1.5rem 0 0; font-size: 0.8rem; color: var(--pico-muted-color); }
+.secondary-btn {
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid var(--pico-muted-border-color);
+  color: var(--pico-muted-color);
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.secondary-btn:hover { color: var(--pico-color); border-color: var(--pico-color); }
+

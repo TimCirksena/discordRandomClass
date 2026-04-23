@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kein Zugriff - Herr Herbert Zufallsklasse</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+</head>
+<body class="login-body">
+<main class="login-wrap">
+  <article class="login-card">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="login-logo" width="96" height="96">
+    <h1>Kein Zugriff</h1>
+    <p class="login-sub">Diese Seite ist nur fuer Mitglieder unseres Discord-Servers. Dein Account ist dort nicht registriert.</p>
+    <a href="{{ url_for('auth_logout') }}" class="secondary-btn">Ausloggen</a>
+  </article>
+</main>
+</body>
+</html>
