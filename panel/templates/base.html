@@ -6,12 +6,18 @@
 <title>{% block title %}Herr Herbert Zufallsklasse{% endblock %}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 {% block head_extra %}{% endblock %}
 </head>
 <body>
 <nav class="container topnav">
   <ul>
-    <li><strong>Herr Herbert</strong></li>
+    <li>
+      <a href="{{ url_for('index') }}" class="brand">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="brand-logo">
+        <strong>Herr Herbert</strong>
+      </a>
+    </li>
   </ul>
   <ul>
     <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Steuerung</a></li>
