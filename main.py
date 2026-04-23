@@ -14,6 +14,7 @@ from scoringmodel import calculate_class_score
 import randomClass
 from playerstats import record_roll, reset_session
 from voice import speak_in_channel
+import config as app_config
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
@@ -32,12 +33,69 @@ client: Client = Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 
-# ==================== REROLL VIEW ====================
+# ==================== REROLL VIEW + VOTE VIEW ====================
+
+class VoteView(discord.ui.View):
+    """Channel-Abstimmung nach Reroll: Opfer oder Gueltig."""
+
+    def __init__(self, reroller_id: int, reroll_label: str):
+        super().__init__(timeout=600)  # 10 Minuten
+        self.reroller_id = reroller_id
+        self.reroll_label = reroll_label
+        self.votes_opfer: set[int] = set()
+        self.votes_gueltig: set[int] = set()
+        self.message: discord.Message | None = None
+
+    def _compose(self, mention: str) -> str:
+        opfer = len(self.votes_opfer)
+        gueltig = len(self.votes_gueltig)
+        return (
+            f"{mention} hat **{self.reroll_label}** rerollt. Abstimmung:\n"
+            f"> Opfer: **{opfer}** - Gueltig: **{gueltig}**"
+        )
+
+    async def _register_vote(self, interaction: discord.Interaction, kind: str):
+        uid = interaction.user.id
+        if uid == self.reroller_id:
+            await interaction.response.send_message(
+                "Du kannst nicht ueber deinen eigenen Reroll abstimmen.", ephemeral=True
+            )
+            return
+        if kind == "opfer":
+            self.votes_gueltig.discard(uid)
+            self.votes_opfer.add(uid)
+        else:
+            self.votes_opfer.discard(uid)
+            self.votes_gueltig.add(uid)
+        mention = f"<@{self.reroller_id}>"
+        await interaction.response.edit_message(content=self._compose(mention), view=self)
+
+    @discord.ui.button(label="Opfer", style=discord.ButtonStyle.danger)
+    async def vote_opfer(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._register_vote(interaction, "opfer")
+
+    @discord.ui.button(label="Gueltig", style=discord.ButtonStyle.success)
+    async def vote_gueltig(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._register_vote(interaction, "gueltig")
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message is not None:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
 
 class ClassRollView(discord.ui.View):
-    def __init__(self, owner_id: int, class_data: dict):
+    """Reroll-Buttons unter der gerollten Klasse. Pro /random nur ein Reroll."""
+
+    def __init__(self, owner_id: int, owner_mention: str, channel: discord.abc.Messageable, class_data: dict):
         super().__init__(timeout=300)  # 5 Minuten
         self.owner_id = owner_id
+        self.owner_mention = owner_mention
+        self.channel = channel
         self.class_data = class_data
         self.rc = randomClass.RandomClass()
         self.message: discord.InteractionMessage | None = None
@@ -50,23 +108,37 @@ class ClassRollView(discord.ui.View):
             return False
         return True
 
-    async def _refresh(self, interaction: discord.Interaction):
+    async def _apply_reroll(self, interaction: discord.Interaction, reroll_label: str):
+        """Zeigt die neue Klasse an, disabled alle Buttons und postet Vote-Message im Channel."""
         user_class_data[self.owner_id] = self.class_data
         total_score = calculate_class_score(self.class_data)
         embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id)
+        existing = embed.footer.text if embed.footer and embed.footer.text else ""
+        embed.set_footer(text=(existing + f"  -  rerollt: {reroll_label}").strip(" -"))
+        # Alle Buttons disablen - ein Reroll pro /random
+        for child in self.children:
+            child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
+        self.stop()
+        # Vote-Message im Channel
+        vote = VoteView(reroller_id=self.owner_id, reroll_label=reroll_label)
+        try:
+            msg = await self.channel.send(content=vote._compose(self.owner_mention), view=vote)
+            vote.message = msg
+        except discord.HTTPException:
+            pass
 
     @discord.ui.button(label="Primary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["primary"] = self.rc.get_random_primary(perk1)
-        await self._refresh(interaction)
+        await self._apply_reroll(interaction, "Primary")
 
     @discord.ui.button(label="Secondary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["secondary"] = self.rc.get_random_secondary(perk1)
-        await self._refresh(interaction)
+        await self._apply_reroll(interaction, "Secondary")
 
     @discord.ui.button(label="Perks wuerfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_perks(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -75,28 +147,16 @@ class ClassRollView(discord.ui.View):
         self.class_data["perk1"] = new_perk1
         self.class_data["perk2"] = self.rc.get_random_perk2()
         self.class_data["perk3"] = self.rc.get_random_perk3()
-        # Perk1 steuert Bling (zwei Attachments) -> Waffen neu, falls geaendert
         if old_perk1 != new_perk1:
             self.class_data["primary"] = self.rc.get_random_primary(new_perk1)
             self.class_data["secondary"] = self.rc.get_random_secondary(new_perk1)
-        await self._refresh(interaction)
+        await self._apply_reroll(interaction, "Perks")
 
     @discord.ui.button(label="Extras wuerfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_extras(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.class_data["equipment"] = self.rc.get_random_equipment()
         self.class_data["special_grenade"] = self.rc.get_random_special_grenade()
-        await self._refresh(interaction)
-
-    @discord.ui.button(label="Bleibt so", style=discord.ButtonStyle.success, row=0)
-    async def lock_in(self, interaction: discord.Interaction, button: discord.ui.Button):
-        for child in self.children:
-            child.disabled = True
-        total_score = calculate_class_score(self.class_data)
-        embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id)
-        existing = embed.footer.text if embed.footer and embed.footer.text else ""
-        embed.set_footer(text=(existing + "  -  LOCKED").strip(" -"))
-        await interaction.response.edit_message(embed=embed, view=self)
-        self.stop()
+        await self._apply_reroll(interaction, "Extras")
 
     async def on_timeout(self):
         for child in self.children:
@@ -252,7 +312,12 @@ async def random_class(interaction: discord.Interaction):
     await asyncio.sleep(1.0)
 
     # Step 4: Finales Embed mit Score + Tier-Farbe + Reroll-Buttons
-    view = ClassRollView(owner_id=user_id, class_data=class_data)
+    view = ClassRollView(
+        owner_id=user_id,
+        owner_mention=interaction.user.mention,
+        channel=interaction.channel,
+        class_data=class_data,
+    )
     message = await interaction.edit_original_response(
         embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id),
         view=view,
@@ -260,9 +325,11 @@ async def random_class(interaction: discord.Interaction):
     view.message = message
 
     is_roast_target = user_id == ROAST_TARGET_ID
+    legendary_min = app_config.get("legendary_min")
+    trash_max = app_config.get("trash_max")
 
     # Bonus-Effekte je nach Tier (Channel-Nachricht + Voice-TTS)
-    if total_score > 45:
+    if total_score > legendary_min:
         await asyncio.sleep(0.5)
         if is_roast_target:
             await interaction.channel.send(
@@ -284,7 +351,7 @@ async def random_class(interaction: discord.Interaction):
                 interaction.guild, interaction.user,
                 f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
             )
-    elif total_score < 18:
+    elif total_score < trash_max:
         await asyncio.sleep(0.5)
         if is_roast_target:
             await interaction.channel.send(
@@ -375,6 +442,40 @@ async def change(interaction: discord.Interaction, what: app_commands.Choice[str
         await interaction.response.send_message(result, ephemeral=True)
     else:
         await interaction.response.send_message(embed=result, ephemeral=True)
+
+
+@tree.command(name="threshold", description="[Admin] Setze Legendary/Trash Score-Schwellen")
+@app_commands.describe(
+    legendary="Score > diesem Wert = Legendary Tier (default 40)",
+    trash="Score < diesem Wert = Trash Tier (default 18)",
+)
+async def set_threshold(
+    interaction: discord.Interaction,
+    legendary: int = None,
+    trash: int = None,
+):
+    if interaction.user.id != ADMIN_ID:
+        await interaction.response.send_message("Nur Admins duerfen Schwellen setzen.", ephemeral=True)
+        return
+
+    changes = []
+    if legendary is not None:
+        app_config.set_value("legendary_min", legendary)
+        changes.append(f"Legendary > **{legendary}**")
+    if trash is not None:
+        app_config.set_value("trash_max", trash)
+        changes.append(f"Trash < **{trash}**")
+
+    if not changes:
+        current = (
+            f"Aktuelle Schwellen:\n"
+            f"- Legendary > **{app_config.get('legendary_min')}**\n"
+            f"- Trash < **{app_config.get('trash_max')}**"
+        )
+        await interaction.response.send_message(current, ephemeral=True)
+        return
+
+    await interaction.response.send_message("Neue Schwellen:\n" + "\n".join(changes), ephemeral=False)
 
 
 @tree.command(name="tts", description="Teste die Voice-TTS Ansage")

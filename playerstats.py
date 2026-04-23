@@ -6,6 +6,8 @@ import json
 import os
 from datetime import datetime
 
+import config as app_config
+
 STATS_DIR = os.path.join(os.path.dirname(__file__), "stats")
 HISTORY_FILE = os.path.join(STATS_DIR, "history.jsonl")
 NAMES_FILE = os.path.join(STATS_DIR, "user_names.json")
@@ -149,9 +151,9 @@ def record_roll(user_id: int, class_data: dict, total_score: int, display_name: 
             s["best_score"] = total_score
         if total_score < s["worst_score"]:
             s["worst_score"] = total_score
-        if total_score > 40:
+        if total_score > app_config.get("legendary_min"):
             s["legendary_count"] += 1
-        if total_score < 18:
+        if total_score < app_config.get("trash_max"):
             s["trash_count"] += 1
         if display_name:
             s["name"] = display_name

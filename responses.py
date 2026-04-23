@@ -4,6 +4,7 @@ from discord import Embed
 import randomClass
 from scoringmodel import calculate_class_score, get_score_breakdown, get_weapon_data, get_secondary_weapon_data, get_primary_category
 from playerstats import get_player_stats
+import config as app_config
 
 
 user_class_data = {}
@@ -133,13 +134,13 @@ def _labels(user_id):
 
 def get_score_tier(total_score):
     """Returns tier info (color, title, footer) based on score."""
-    if total_score > 40:
+    if total_score > app_config.get("legendary_min"):
         return {
             "color": 0xFFD700,
             "title": "⚡ LEGENDARY DROP ⚡",
             "footer": "🔥 Diese Klasse ist OVERPOWERED! 🔥"
         }
-    elif total_score < 18:
+    elif total_score < app_config.get("trash_max"):
         return {
             "color": 0x808080,
             "title": "💀 Müll-Klasse 💀",
