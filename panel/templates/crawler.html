@@ -1,0 +1,811 @@
+{% extends "base.html" %}
+{% block title %}Boss-Fight — Crawler{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Boss-Fight</h1>
+  <p>Lauf durch den Wald, haue die Goblins und besiege den Boss. Steuerung: <kbd>A</kbd>/<kbd>D</kbd> oder <kbd>←</kbd>/<kbd>→</kbd>, <kbd>Space</kbd>/<kbd>W</kbd> springen, <kbd>J</kbd> Schlag.</p>
+</header>
+
+<div class="crw-layout">
+  <div class="crw-game-wrap">
+    <canvas id="game" width="800" height="450"></canvas>
+    <div class="crw-overlay" id="crw-overlay-start">
+      <div class="crw-card">
+        <h2>Bereit?</h2>
+        <p>Besiege Tim, den finalen Boss.</p>
+        <button type="button" id="btn-start" class="crw-btn">Start</button>
+      </div>
+    </div>
+    <div class="crw-overlay" id="crw-overlay-end" hidden>
+      <div class="crw-card">
+        <h2 id="end-title">Geschafft!</h2>
+        <p class="crw-big-time" id="end-time">0.000 s</p>
+        <p class="crw-sub" id="end-detail"></p>
+        <button type="button" id="btn-restart" class="crw-btn">Nochmal</button>
+      </div>
+    </div>
+  </div>
+
+  <article class="crw-leaderboard">
+    <header><strong>Bestzeiten</strong></header>
+    <p class="muted small" id="lb-my">Lade...</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Spieler</th><th class="num">Zeit</th><th class="num">Datum</th></tr>
+        </thead>
+        <tbody id="lb-body">
+          <tr><td colspan="4" class="muted small">Lade Leaderboard...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // ============== Konfig ==============
+  const CANVAS_W = 800, CANVAS_H = 450;
+  const SCALE = 2;              // 16x16 Sprite -> 32x32 auf Screen
+  const GRAVITY = 0.55;
+  const JUMP_V = -11;
+  const MOVE_SPEED = 2.6;
+  const MAX_FALL = 14;
+  const HERO_W = 28, HERO_H = 30;    // Hitbox (kleiner als Sprite)
+  const HERO_MAX_HP = 3;
+  const HERO_IFRAMES_MS = 900;
+  const ATTACK_COOLDOWN = 380;
+  const ATTACK_ACTIVE = [80, 200]; // ms nach Start
+  const ATTACK_RANGE_X = 34;
+  const ATTACK_RANGE_Y = 30;
+  const GROUND_Y = 380;
+  const LEVEL_END_X = 2500;   // ab hier Boss-Arena
+  const ARENA_WALL_X = 2520;
+  const ARENA_RIGHT = 2900;
+
+  // ============== DOM ==============
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const ovStart = document.getElementById('crw-overlay-start');
+  const ovEnd = document.getElementById('crw-overlay-end');
+  const endTitle = document.getElementById('end-title');
+  const endTime = document.getElementById('end-time');
+  const endDetail = document.getElementById('end-detail');
+  const btnStart = document.getElementById('btn-start');
+  const btnRestart = document.getElementById('btn-restart');
+  const lbBody = document.getElementById('lb-body');
+  const lbMy = document.getElementById('lb-my');
+
+  // ============== Asset-Loader ==============
+  const ASSETS = {
+    hero_idle:  { src: "{{ url_for('static', filename='crawler/hero_idle.png') }}", frames: 4 },
+    hero_run:   { src: "{{ url_for('static', filename='crawler/hero_run.png') }}", frames: 6 },
+    hero_jumpU: { src: "{{ url_for('static', filename='crawler/hero_jump_up.png') }}", frames: 3 },
+    hero_jumpD: { src: "{{ url_for('static', filename='crawler/hero_jump_down.png') }}", frames: 3 },
+    hero_atk:   { src: "{{ url_for('static', filename='crawler/hero_attack.png') }}", frames: 4 },
+    hero_hit:   { src: "{{ url_for('static', filename='crawler/hero_hit.png') }}", frames: 3 },
+    hero_death: { src: "{{ url_for('static', filename='crawler/hero_death.png') }}", frames: 8 },
+    gob_idle:   { src: "{{ url_for('static', filename='crawler/goblin_idle.png') }}", frames: 4 },
+    gob_run:    { src: "{{ url_for('static', filename='crawler/goblin_run.png') }}", frames: 6 },
+    gob_hit:    { src: "{{ url_for('static', filename='crawler/goblin_hit.png') }}", frames: 3 },
+    gob_death:  { src: "{{ url_for('static', filename='crawler/goblin_death.png') }}", frames: 6 },
+    tileset:    { src: "{{ url_for('static', filename='crawler/tileset.png') }}" },
+    bg0:        { src: "{{ url_for('static', filename='crawler/bg_0.png') }}" },
+    bg1:        { src: "{{ url_for('static', filename='crawler/bg_1.png') }}" },
+    bg2:        { src: "{{ url_for('static', filename='crawler/bg_2.png') }}" },
+    bg_forest:  { src: "{{ url_for('static', filename='crawler/background.png') }}" },
+    hearts:     { src: "{{ url_for('static', filename='crawler/hearts.png') }}" },
+    tim:        { src: "{{ url_for('static', filename='haudentim/tim.png') }}" },
+  };
+
+  function loadAll() {
+    return Promise.all(Object.values(ASSETS).map(a => new Promise(res => {
+      const img = new Image();
+      img.onload = () => { a.img = img; res(); };
+      img.onerror = () => { a.img = null; res(); };
+      img.src = a.src;
+    })));
+  }
+
+  // ============== Input ==============
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyJ'].includes(e.code)) {
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  function left()   { return keys['KeyA'] || keys['ArrowLeft']; }
+  function right()  { return keys['KeyD'] || keys['ArrowRight']; }
+  function jump()   { return keys['Space'] || keys['KeyW'] || keys['ArrowUp']; }
+  function attack() { return keys['KeyJ']; }
+
+  // ============== Level ==============
+  // Plattform-Rechtecke in Welt-Koordinaten (x,y,w,h)
+  // Ground ist durchgängig bei y=GROUND_Y, plus ein paar schwebende Plattformen
+  const platforms = [
+    // Ground segments
+    { x: 0,    y: GROUND_Y, w: 800,  h: 70 },
+    { x: 860,  y: GROUND_Y, w: 600,  h: 70 },
+    { x: 1520, y: GROUND_Y, w: 600,  h: 70 },
+    { x: 2180, y: GROUND_Y, w: 900,  h: 70 },
+    // Floating platforms (manageable gaps)
+    { x: 500,  y: 300, w: 120, h: 20 },
+    { x: 720,  y: 240, w: 120, h: 20 },
+    { x: 1000, y: 280, w: 100, h: 20 },
+    { x: 1250, y: 320, w: 130, h: 20 },
+    { x: 1700, y: 260, w: 140, h: 20 },
+    { x: 1950, y: 300, w: 120, h: 20 },
+  ];
+
+  // ============== Sprite-Renderer ==============
+  function drawFrame(asset, frameIdx, x, y, w, h, flip) {
+    if (!asset || !asset.img) return;
+    const img = asset.img;
+    const fw = img.width / (asset.frames || 1);
+    const fh = img.height;
+    ctx.save();
+    if (flip) {
+      ctx.translate(x + w, y);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, fw * frameIdx, 0, fw, fh, 0, 0, w, h);
+    } else {
+      ctx.drawImage(img, fw * frameIdx, 0, fw, fh, x, y, w, h);
+    }
+    ctx.restore();
+  }
+
+  // ============== Entities ==============
+  function makeHero() {
+    return {
+      x: 60, y: 300, vx: 0, vy: 0,
+      w: HERO_W, h: HERO_H,
+      facing: 1, onGround: false,
+      hp: HERO_MAX_HP, iframes: 0,
+      state: 'idle', frameTimer: 0, frameIdx: 0,
+      attackStart: 0, attackCooldown: 0,
+      dead: false, deathTimer: 0,
+    };
+  }
+
+  function makeGoblin(x) {
+    return {
+      type: 'goblin', x: x, y: GROUND_Y - 28, vx: -0.6,
+      w: 24, h: 28,
+      hp: 1, state: 'run', frameTimer: 0, frameIdx: 0,
+      patrolMin: x - 60, patrolMax: x + 60,
+      hitTimer: 0,
+    };
+  }
+
+  function makeBoss() {
+    return {
+      type: 'boss', x: 2730, y: GROUND_Y - 120,
+      w: 90, h: 110,
+      hp: 5, maxHp: 5,
+      paceDir: 1, paceMin: 2620, paceMax: 2830,
+      iframes: 0,
+      patternTimer: 0, pattern: 'idle', // 'idle' -> 'telegraph' -> 'laser' / 'projectiles'
+      laserY: 0, laserTele: 0, laserActive: 0,
+      projectileTimer: 0,
+      dead: false, deathTimer: 0,
+    };
+  }
+
+  let hero, enemies, boss, projectiles;
+  let camX = 0;
+  let state = 'idle';   // 'idle' | 'running' | 'won' | 'lost'
+  let startTime = 0;
+  let endTimeMs = 0;
+
+  function initLevel() {
+    hero = makeHero();
+    enemies = [
+      makeGoblin(380),
+      makeGoblin(1100),
+      makeGoblin(1400),
+      makeGoblin(1800),
+      makeGoblin(2200),
+    ];
+    boss = null;
+    projectiles = [];
+    camX = 0;
+  }
+
+  // ============== Collision ==============
+  function aabb(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function collideWithPlatforms(ent, dx, dy) {
+    // Bewege X, kollidiere mit Plattformen (Seitenkollision)
+    ent.x += dx;
+    for (const p of platforms) {
+      if (aabb(ent, p)) {
+        if (dx > 0) ent.x = p.x - ent.w;
+        else if (dx < 0) ent.x = p.x + p.w;
+        break;
+      }
+    }
+    // Bewege Y, kollidiere (top/bottom)
+    ent.y += dy;
+    ent.onGround = false;
+    for (const p of platforms) {
+      if (aabb(ent, p)) {
+        if (dy > 0) { ent.y = p.y - ent.h; ent.vy = 0; ent.onGround = true; }
+        else if (dy < 0) { ent.y = p.y + p.h; ent.vy = 0; }
+        break;
+      }
+    }
+    // Weltgrenzen X
+    if (ent.x < 0) ent.x = 0;
+    const maxX = boss ? ARENA_RIGHT - ent.w : LEVEL_END_X + 200 - ent.w;
+    if (ent.x > maxX) ent.x = maxX;
+    // Unendlicher Fall = Tod
+    if (ent.y > 600) {
+      if (ent === hero) damageHero(99);
+    }
+  }
+
+  // ============== Hero Update ==============
+  function heroUpdate(dt, now) {
+    if (hero.dead) {
+      hero.deathTimer += dt;
+      if (hero.deathTimer > 1200) loseGame();
+      return;
+    }
+    if (hero.iframes > 0) hero.iframes -= dt;
+    if (hero.attackCooldown > 0) hero.attackCooldown -= dt;
+
+    // Bewegung
+    let dir = 0;
+    if (left()) { dir = -1; hero.facing = -1; }
+    if (right()) { dir = 1; hero.facing = 1; }
+    hero.vx = dir * MOVE_SPEED;
+
+    // Jump
+    if (jump() && hero.onGround) {
+      hero.vy = JUMP_V;
+      hero.onGround = false;
+    }
+
+    // Gravity
+    hero.vy += GRAVITY;
+    if (hero.vy > MAX_FALL) hero.vy = MAX_FALL;
+
+    collideWithPlatforms(hero, hero.vx, 0);
+    collideWithPlatforms(hero, 0, hero.vy);
+
+    // Attack
+    if (attack() && hero.attackCooldown <= 0 && hero.state !== 'attack') {
+      hero.state = 'attack';
+      hero.frameIdx = 0;
+      hero.frameTimer = 0;
+      hero.attackStart = now;
+      hero.attackCooldown = ATTACK_COOLDOWN;
+    } else {
+      // State derivation
+      if (hero.state !== 'attack') {
+        if (!hero.onGround) {
+          hero.state = hero.vy < 0 ? 'jumpU' : 'jumpD';
+        } else if (Math.abs(hero.vx) > 0.1) {
+          hero.state = 'run';
+        } else {
+          hero.state = 'idle';
+        }
+      }
+    }
+
+    // Attack frame animation
+    if (hero.state === 'attack') {
+      const elapsed = now - hero.attackStart;
+      hero.frameIdx = Math.min(3, Math.floor(elapsed / 60));
+      if (elapsed > 260) {
+        hero.state = 'idle';
+      }
+      // Aktives Damage-Fenster
+      if (elapsed >= ATTACK_ACTIVE[0] && elapsed <= ATTACK_ACTIVE[1]) {
+        const atkBox = {
+          x: hero.facing > 0 ? hero.x + hero.w - 4 : hero.x - ATTACK_RANGE_X + 4,
+          y: hero.y - 4,
+          w: ATTACK_RANGE_X,
+          h: ATTACK_RANGE_Y,
+        };
+        for (const e of enemies) {
+          if (e.hp > 0 && e.hitTimer <= 0 && aabb(atkBox, e)) {
+            e.hp -= 1;
+            e.hitTimer = 300;
+            e.state = 'hit';
+            e.frameIdx = 0; e.frameTimer = 0;
+            e.vx = hero.facing * 2;  // knockback
+          }
+        }
+        if (boss && !boss.dead && boss.iframes <= 0 && aabb(atkBox, boss)) {
+          boss.hp -= 1;
+          boss.iframes = 400;
+          if (boss.hp <= 0) { boss.dead = true; boss.deathTimer = 0; winGame(now); }
+        }
+      }
+    } else {
+      // Simple animation ticker
+      hero.frameTimer += dt;
+      const speed = hero.state === 'run' ? 80 : 140;
+      if (hero.frameTimer > speed) {
+        hero.frameTimer = 0;
+        hero.frameIdx = (hero.frameIdx + 1) % (ASSETS[heroAssetKey()].frames || 1);
+      }
+    }
+  }
+
+  function heroAssetKey() {
+    if (hero.dead) return 'hero_death';
+    switch (hero.state) {
+      case 'attack': return 'hero_atk';
+      case 'run':    return 'hero_run';
+      case 'jumpU':  return 'hero_jumpU';
+      case 'jumpD':  return 'hero_jumpD';
+      default:       return 'hero_idle';
+    }
+  }
+
+  function damageHero(dmg) {
+    if (hero.dead || hero.iframes > 0) return;
+    hero.hp -= dmg;
+    hero.iframes = HERO_IFRAMES_MS;
+    if (hero.hp <= 0) {
+      hero.hp = 0;
+      hero.dead = true;
+      hero.state = 'dead';
+      hero.frameIdx = 0;
+      hero.deathTimer = 0;
+    }
+  }
+
+  // ============== Enemies Update ==============
+  function goblinUpdate(e, dt) {
+    if (e.hp <= 0) {
+      if (e.state !== 'dead') { e.state = 'dead'; e.frameIdx = 0; e.frameTimer = 0; }
+      e.frameTimer += dt;
+      if (e.frameTimer > 90) {
+        e.frameTimer = 0;
+        e.frameIdx++;
+        if (e.frameIdx >= 5) {
+          e.remove = true;
+        }
+      }
+      return;
+    }
+    if (e.hitTimer > 0) e.hitTimer -= dt;
+
+    // Gravity
+    e.vy = (e.vy || 0) + GRAVITY;
+    if (e.vy > MAX_FALL) e.vy = MAX_FALL;
+
+    // Patrol
+    if (e.state !== 'hit') {
+      if (e.x < e.patrolMin) e.vx = 0.6;
+      if (e.x > e.patrolMax) e.vx = -0.6;
+    }
+
+    collideWithPlatforms(e, e.vx, 0);
+    collideWithPlatforms(e, 0, e.vy);
+
+    // Animation
+    e.frameTimer += dt;
+    if (e.state === 'hit') {
+      if (e.frameTimer > 80) {
+        e.frameTimer = 0;
+        e.frameIdx++;
+        if (e.frameIdx >= 3) { e.state = 'run'; e.frameIdx = 0; }
+      }
+    } else {
+      const speed = e.state === 'run' ? 100 : 140;
+      if (e.frameTimer > speed) {
+        e.frameTimer = 0;
+        e.frameIdx = (e.frameIdx + 1) % (e.state === 'run' ? 6 : 4);
+      }
+    }
+
+    // Hero-Kontakt
+    if (hero && !hero.dead && aabb(hero, e)) {
+      damageHero(1);
+      hero.vx = (hero.x < e.x ? -1 : 1) * 4;
+      hero.vy = -6;
+    }
+  }
+
+  // ============== Boss Update ==============
+  function bossSpawnIfNeeded() {
+    if (!boss && hero.x > LEVEL_END_X - 120) {
+      boss = makeBoss();
+      // Seal the arena: add invisible wall
+      platforms.push({ x: ARENA_WALL_X, y: 0, w: 20, h: 600, hidden: true });
+    }
+  }
+
+  function bossUpdate(dt, now) {
+    if (!boss) return;
+    if (boss.dead) {
+      boss.deathTimer += dt;
+      return;
+    }
+    if (boss.iframes > 0) boss.iframes -= dt;
+
+    // Pacing
+    boss.x += boss.paceDir * 0.6;
+    if (boss.x < boss.paceMin) boss.paceDir = 1;
+    if (boss.x > boss.paceMax - boss.w) boss.paceDir = -1;
+
+    // Attack-Pattern (zyklisch ~3s)
+    boss.patternTimer += dt;
+    if (boss.pattern === 'idle') {
+      if (boss.patternTimer > 900) {
+        boss.patternTimer = 0;
+        // Wähle Attack
+        boss.pattern = Math.random() < 0.55 ? 'projectiles' : 'laser_tele';
+        if (boss.pattern === 'projectiles') boss.projectileTimer = 0;
+        if (boss.pattern === 'laser_tele') {
+          boss.laserY = hero.y + 6;  // Ziel-Höhe
+          boss.laserTele = 0;
+        }
+      }
+    } else if (boss.pattern === 'projectiles') {
+      // 3 Projektile mit kleinem Abstand
+      boss.projectileTimer += dt;
+      if (boss.projectileTimer >= 0 && boss.projectileTimer < 50) {
+        spawnProjectile(boss.x + boss.w/2, boss.y + boss.h/2);
+        boss.projectileTimer = 50;
+      } else if (boss.projectileTimer >= 250 && boss.projectileTimer < 300) {
+        spawnProjectile(boss.x + boss.w/2, boss.y + boss.h/2);
+        boss.projectileTimer = 300;
+      } else if (boss.projectileTimer >= 500 && boss.projectileTimer < 550) {
+        spawnProjectile(boss.x + boss.w/2, boss.y + boss.h/2);
+        boss.projectileTimer = 550;
+      }
+      if (boss.projectileTimer > 700) {
+        boss.pattern = 'idle';
+        boss.patternTimer = 0;
+      }
+    } else if (boss.pattern === 'laser_tele') {
+      boss.laserTele += dt;
+      if (boss.laserTele > 1100) {
+        boss.pattern = 'laser_active';
+        boss.laserActive = 0;
+      }
+    } else if (boss.pattern === 'laser_active') {
+      boss.laserActive += dt;
+      // Laser trifft wenn Hero auf laserY-Höhe
+      const beamTop = boss.laserY;
+      const beamBottom = boss.laserY + 18;
+      if (hero && !hero.dead && hero.iframes <= 0) {
+        if (hero.y + hero.h > beamTop && hero.y < beamBottom) {
+          if (hero.x + hero.w > boss.paceMin - 40 && hero.x < boss.x + boss.w) {
+            damageHero(1);
+          }
+        }
+      }
+      if (boss.laserActive > 350) {
+        boss.pattern = 'idle';
+        boss.patternTimer = 0;
+      }
+    }
+
+    // Kontakt-Damage
+    if (hero && !hero.dead && aabb(hero, boss)) {
+      damageHero(1);
+      hero.vx = (hero.x < boss.x ? -1 : 1) * 5;
+      hero.vy = -7;
+    }
+  }
+
+  function spawnProjectile(x, y) {
+    const tx = hero.x + hero.w/2;
+    const ty = hero.y + hero.h/2;
+    const dx = tx - x, dy = ty - y;
+    const len = Math.max(1, Math.sqrt(dx*dx + dy*dy));
+    const speed = 3.2;
+    projectiles.push({
+      x: x, y: y, vx: dx/len * speed, vy: dy/len * speed,
+      w: 12, h: 12, life: 4000,
+    });
+  }
+
+  function projectilesUpdate(dt) {
+    for (const p of projectiles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= dt;
+      if (hero && !hero.dead && hero.iframes <= 0 && aabb(hero, p)) {
+        damageHero(1);
+        p.life = 0;
+      }
+    }
+    projectiles = projectiles.filter(p => p.life > 0);
+  }
+
+  // ============== Rendering ==============
+  function drawParallaxLayer(asset, scroll, y) {
+    if (!asset || !asset.img) return;
+    const img = asset.img;
+    const w = img.width;
+    const startX = -((scroll % w) + w) % w;
+    for (let x = startX; x < CANVAS_W; x += w) {
+      ctx.drawImage(img, x, y);
+    }
+  }
+
+  function drawBackground() {
+    // Solid-Fill darunter
+    ctx.fillStyle = '#5d6a3a';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // Parallax-Layer (falls Bilder reichen)
+    drawParallaxLayer(ASSETS.bg_forest, camX * 0.2, 0);
+    drawParallaxLayer(ASSETS.bg0, camX * 0.35, 150);
+    drawParallaxLayer(ASSETS.bg1, camX * 0.55, 220);
+    drawParallaxLayer(ASSETS.bg2, camX * 0.75, 290);
+  }
+
+  function drawPlatforms() {
+    ctx.fillStyle = '#3a2e1f';
+    for (const p of platforms) {
+      if (p.hidden) continue;
+      const sx = p.x - camX;
+      if (sx + p.w < 0 || sx > CANVAS_W) continue;
+      // Simple erdig-grüne Plattform
+      ctx.fillStyle = '#4a6b2a';
+      ctx.fillRect(sx, p.y, p.w, 4);
+      ctx.fillStyle = '#3a2e1f';
+      ctx.fillRect(sx, p.y + 4, p.w, p.h - 4);
+      // Details
+      ctx.fillStyle = '#2a1e0f';
+      for (let i = 8; i < p.w - 4; i += 22) {
+        ctx.fillRect(sx + i, p.y + 10, 3, 3);
+      }
+    }
+  }
+
+  function drawHero() {
+    if (!hero) return;
+    const key = heroAssetKey();
+    const asset = ASSETS[key];
+    const spriteW = HERO_W * SCALE / SCALE;  // Sprite 16x16 base
+    const SW = 16 * 2, SH = 16 * 2;
+    const dx = hero.x - (SW - hero.w)/2 - camX;
+    const dy = hero.y - (SH - hero.h);
+    // Blink während iframes
+    if (hero.iframes > 0 && Math.floor(hero.iframes / 80) % 2 === 0) return;
+    drawFrame(asset, hero.frameIdx, dx, dy, SW, SH, hero.facing < 0);
+  }
+
+  function drawEnemies() {
+    for (const e of enemies) {
+      const SW = 16 * 2, SH = 16 * 2;
+      let key = 'gob_idle';
+      let frames = 4;
+      if (e.hp <= 0) { key = 'gob_death'; frames = 6; }
+      else if (e.state === 'hit') { key = 'gob_hit'; frames = 3; }
+      else if (e.state === 'run') { key = 'gob_run'; frames = 6; }
+      const asset = ASSETS[key];
+      const dx = e.x - (SW - e.w)/2 - camX;
+      const dy = e.y - (SH - e.h);
+      drawFrame(asset, Math.min(e.frameIdx, frames-1), dx, dy, SW, SH, e.vx > 0);
+    }
+  }
+
+  function drawBoss() {
+    if (!boss) return;
+    const dx = boss.x - camX;
+    const dy = boss.y;
+    // Iframe blink
+    if (boss.iframes > 0 && Math.floor(boss.iframes / 70) % 2 === 0) {
+      // skip frame
+    } else {
+      const img = ASSETS.tim.img;
+      if (img) {
+        ctx.save();
+        if (boss.paceDir < 0) {
+          ctx.translate(dx + boss.w, dy);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, 0, 0, boss.w, boss.h);
+        } else {
+          ctx.drawImage(img, dx, dy, boss.w, boss.h);
+        }
+        ctx.restore();
+      }
+    }
+    // Telegraph-Laser
+    if (boss.pattern === 'laser_tele') {
+      const alpha = 0.35 + 0.3 * Math.sin(boss.laserTele * 0.03);
+      ctx.fillStyle = `rgba(255, 40, 40, ${alpha})`;
+      ctx.fillRect(0, boss.laserY, CANVAS_W, 18);
+    }
+    if (boss.pattern === 'laser_active') {
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(0, boss.laserY, CANVAS_W, 18);
+      ctx.fillStyle = '#ff2222';
+      ctx.fillRect(0, boss.laserY + 5, CANVAS_W, 8);
+    }
+    // Boss HP bar
+    const barW = 200, barH = 8;
+    const bx = (CANVAS_W - barW) / 2, by = 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+    ctx.fillStyle = '#7a1a1a';
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = '#ff4444';
+    ctx.fillRect(bx, by, barW * (boss.hp / boss.maxHp), barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TIM', CANVAS_W / 2, by - 4);
+    ctx.textAlign = 'left';
+  }
+
+  function drawProjectiles() {
+    for (const p of projectiles) {
+      const dx = p.x - camX;
+      ctx.fillStyle = '#ff8833';
+      ctx.beginPath();
+      ctx.arc(dx + p.w/2, p.y + p.h/2, p.w/2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffdd66';
+      ctx.beginPath();
+      ctx.arc(dx + p.w/2, p.y + p.h/2, p.w/3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawHUD(now) {
+    if (!ASSETS.hearts.img) return;
+    for (let i = 0; i < HERO_MAX_HP; i++) {
+      ctx.save();
+      ctx.globalAlpha = i < hero.hp ? 1 : 0.25;
+      ctx.drawImage(ASSETS.hearts.img, 10 + i * 26, 12, 24, 24);
+      ctx.restore();
+    }
+    // Timer
+    const elapsed = state === 'running' ? (now - startTime) : endTimeMs;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 18px monospace';
+    const text = (elapsed / 1000).toFixed(2) + 's';
+    ctx.textAlign = 'right';
+    ctx.strokeText(text, CANVAS_W - 12, 30);
+    ctx.fillText(text, CANVAS_W - 12, 30);
+    ctx.textAlign = 'left';
+  }
+
+  // ============== Game-Loop ==============
+  let lastT = 0;
+  function tick(now) {
+    const dt = Math.min(40, now - lastT || 16);
+    lastT = now;
+    if (state === 'running') {
+      heroUpdate(dt, now);
+      for (const e of enemies) goblinUpdate(e, dt);
+      enemies = enemies.filter(e => !e.remove);
+      bossSpawnIfNeeded();
+      bossUpdate(dt, now);
+      projectilesUpdate(dt);
+      // Kamera folgt Held
+      const target = hero.x - CANVAS_W / 2 + 40;
+      camX += (target - camX) * 0.1;
+      if (camX < 0) camX = 0;
+      const maxCam = (boss ? ARENA_RIGHT : LEVEL_END_X + 200) - CANVAS_W;
+      if (camX > maxCam) camX = maxCam;
+    }
+    // Render
+    drawBackground();
+    drawPlatforms();
+    drawEnemies();
+    drawBoss();
+    drawProjectiles();
+    drawHero();
+    drawHUD(now);
+    requestAnimationFrame(tick);
+  }
+
+  // ============== Game-Flow ==============
+  function startGame() {
+    // Reset platforms (arena wall may have been added)
+    while (platforms.length && platforms[platforms.length - 1].hidden) platforms.pop();
+    initLevel();
+    state = 'running';
+    startTime = performance.now();
+    ovStart.hidden = true;
+    ovEnd.hidden = true;
+  }
+
+  function winGame(now) {
+    state = 'won';
+    endTimeMs = now - startTime;
+    endTitle.textContent = 'Boss besiegt!';
+    endTime.textContent = (endTimeMs / 1000).toFixed(3) + ' s';
+    endDetail.textContent = 'Wird eingereicht...';
+    ovEnd.hidden = false;
+    submit(endTimeMs, true);
+  }
+
+  function loseGame() {
+    state = 'lost';
+    endTitle.textContent = 'Game Over';
+    endTime.textContent = ':(';
+    endDetail.textContent = 'Versuch es nochmal.';
+    ovEnd.hidden = false;
+    const elapsed = performance.now() - startTime;
+    submit(Math.round(elapsed), false);
+  }
+
+  async function submit(timeMs, won) {
+    try {
+      const r = await fetch('/crawler/api/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ time_ms: Math.round(timeMs), won }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (won) {
+        endDetail.textContent = data.ok ? 'Score gespeichert!' : 'Score abgelehnt.';
+        if (data.ok) loadLeaderboard();
+      }
+    } catch (e) {}
+  }
+
+  // ============== Leaderboard ==============
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function loadLeaderboard() {
+    try {
+      const r = await fetch('/crawler/api/leaderboard');
+      const data = await r.json();
+      const rows = data.top || [];
+      if (!rows.length) {
+        lbBody.innerHTML = '<tr><td colspan="4" class="muted small">Noch keine Einträge.</td></tr>';
+        lbMy.textContent = 'Noch keine Bestzeit.';
+        return;
+      }
+      const myUserId = "{{ current_user.id if current_user else '' }}";
+      lbBody.innerHTML = rows.map((r, i) => {
+        const isMe = String(r.user_id) === myUserId;
+        const date = (r.ts || '').slice(0, 16).replace('T', ' ');
+        return `<tr class="${isMe ? 'me' : ''}">
+          <td class="num">${i+1}</td>
+          <td>${escapeHtml(r.name || ('User ' + (r.user_id || '').slice(-4)))}</td>
+          <td class="num"><strong>${(r.time_ms/1000).toFixed(3)} s</strong></td>
+          <td class="num muted small">${date}</td>
+        </tr>`;
+      }).join('');
+      if (data.me) {
+        const t = (data.me.time_ms/1000).toFixed(3);
+        const rank = data.my_rank ? `Platz ${data.my_rank}` : '';
+        lbMy.textContent = `Deine Bestzeit: ${t} s ${rank ? '· '+rank : ''}`;
+      } else {
+        lbMy.textContent = 'Noch keine Bestzeit.';
+      }
+    } catch (e) {}
+  }
+
+  // ============== Events ==============
+  btnStart.addEventListener('click', () => { startGame(); canvas.focus(); });
+  btnRestart.addEventListener('click', () => { startGame(); canvas.focus(); });
+  canvas.tabIndex = 0;
+
+  // ============== Init ==============
+  loadAll().then(() => {
+    initLevel();
+    requestAnimationFrame(tick);
+    loadLeaderboard();
+  });
+})();
+</script>
+{% endblock %}

@@ -394,6 +394,78 @@ td.rerolled-cell {
 .htx-leaderboard tr.me { background: rgba(34,197,94,0.08); }
 .htx-leaderboard tr.me td { color: var(--pico-color); }
 #lb-my { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--accent); }
+
+/* ==================== Crawler / Boss-Fight ==================== */
+.crw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+@media (min-width: 1100px) {
+  .crw-layout { grid-template-columns: 800px 1fr; }
+}
+.crw-game-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  background: #000;
+}
+.crw-game-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  outline: none;
+}
+.crw-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8,10,14,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 5;
+}
+.crw-card {
+  padding: 1.5rem 2rem;
+  text-align: center;
+  background: rgba(20,22,28,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+.crw-card h2 { margin: 0 0 0.4rem; }
+.crw-card p { margin: 0 0 1rem; color: var(--pico-muted-color); }
+.crw-big-time {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  color: var(--accent) !important;
+  margin: 0.3rem 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+.crw-sub { font-size: 0.85rem !important; }
+.crw-btn {
+  margin: 0;
+  padding: 0.6rem 1.3rem;
+  font-weight: 600;
+}
+.crw-leaderboard table { font-size: 0.88rem; }
+.crw-leaderboard tr.me { background: rgba(34,197,94,0.08); }
+.crw-leaderboard tr.me td { color: var(--pico-color); }
+
+kbd {
+  padding: 0.1rem 0.35rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+}
 .site-footer { text-align: center; color: var(--pico-muted-color); font-size: 0.8rem; padding: 1.5rem 1rem; max-width: 1020px; }
 
 /* User chip in navbar */

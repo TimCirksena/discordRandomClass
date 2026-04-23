@@ -36,6 +36,7 @@
     <li><a href="{{ url_for('stats_page') }}" class="{% if request.endpoint == 'stats_page' %}active{% endif %}">Stats</a></li>
     <li><a href="{{ url_for('rate_home') }}" class="{% if request.endpoint and request.endpoint.startswith('rate') %}active{% endif %}">Rate</a></li>
     <li><a href="{{ url_for('haudentim_page') }}" class="{% if request.endpoint and request.endpoint.startswith('haudentim') %}active{% endif %}">Hau den Tim</a></li>
+    <li><a href="{{ url_for('crawler_page') }}" class="{% if request.endpoint and request.endpoint.startswith('crawler') %}active{% endif %}">Boss-Fight</a></li>
     {% if current_user %}
     <li class="user-chip">
       <span class="user-name">{{ current_user.global_name }}</span>

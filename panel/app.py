@@ -45,6 +45,9 @@ from playerstats import (  # noqa: E402
     record_haudentim_score,
     haudentim_leaderboard,
     haudentim_user_best,
+    record_crawler_score,
+    crawler_leaderboard,
+    crawler_user_best,
 )
 import randomClass as rc_module  # noqa: E402
 from scoringmodel import calculate_class_score, get_score_breakdown  # noqa: E402
@@ -832,6 +835,49 @@ def haudentim_submit():
 def haudentim_api_leaderboard():
     top = haudentim_leaderboard(limit=20)
     me = haudentim_user_best(session["user"]["id"])
+    my_rank = None
+    if me is not None:
+        for i, row in enumerate(top, start=1):
+            if row.get("user_id") == me.get("user_id"):
+                my_rank = i
+                break
+    return jsonify({"ok": True, "top": top, "me": me, "my_rank": my_rank})
+
+
+# ==================== CRAWLER (Boss-Kampf-Game) ====================
+
+@app.route("/crawler")
+@require_login
+def crawler_page():
+    return render_template("crawler.html")
+
+
+@app.route("/crawler/api/submit", methods=["POST"])
+@require_login
+@limiter.limit("30/minute")
+def crawler_submit():
+    data = request.get_json(silent=True) or {}
+    try:
+        time_ms = int(data.get("time_ms", 0))
+        won = bool(data.get("won", False))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "invalid payload"}), 400
+
+    if won:
+        if time_ms < 5000 or time_ms > 600000:
+            return jsonify({"ok": False, "error": "unrealistische Zeit"}), 400
+    user = session["user"]
+    name = user.get("global_name") or user.get("username", "") or ""
+    record_crawler_score(user["id"], name, time_ms, won)
+    log.info(f"CRAWLER {name} ({user['id']}): {time_ms}ms won={won}")
+    return jsonify({"ok": True})
+
+
+@app.route("/crawler/api/leaderboard")
+@require_login
+def crawler_api_leaderboard():
+    top = crawler_leaderboard(limit=20)
+    me = crawler_user_best(session["user"]["id"])
     my_rank = None
     if me is not None:
         for i, row in enumerate(top, start=1):

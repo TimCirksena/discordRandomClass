@@ -13,6 +13,7 @@ HISTORY_FILE = os.path.join(STATS_DIR, "history.jsonl")
 NAMES_FILE = os.path.join(STATS_DIR, "user_names.json")
 RATINGS_FILE = os.path.join(STATS_DIR, "ratings.jsonl")
 HAUDENTIM_FILE = os.path.join(STATS_DIR, "haudentim_scores.jsonl")
+CRAWLER_FILE = os.path.join(STATS_DIR, "crawler_scores.jsonl")
 
 
 def class_fingerprint(class_data: dict) -> str:
@@ -273,6 +274,75 @@ def haudentim_user_best(user_id: str) -> dict | None:
     uid = str(user_id)
     best = None
     for e in _read_haudentim_all():
+        if str(e.get("user_id", "")) != uid:
+            continue
+        if best is None or e.get("time_ms", 10**9) < best.get("time_ms", 10**9):
+            best = e
+    return best
+
+
+# -------- Crawler / Boss-Game --------
+
+def record_crawler_score(user_id: str, name: str, time_ms: int, won: bool):
+    entry = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "user_id": str(user_id),
+        "name": name,
+        "time_ms": int(time_ms),
+        "won": bool(won),
+    }
+    os.makedirs(STATS_DIR, exist_ok=True)
+    with open(CRAWLER_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    _remember_name(user_id, name)
+
+
+def _read_crawler_all() -> list:
+    if not os.path.exists(CRAWLER_FILE):
+        return []
+    entries = []
+    with open(CRAWLER_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def crawler_leaderboard(limit: int = 20) -> list:
+    """Beste Gewinn-Zeit pro User, aufsteigend."""
+    entries = _read_crawler_all()
+    names = _load_json(NAMES_FILE)
+    best: dict[str, dict] = {}
+    for e in entries:
+        if not e.get("won"):
+            continue
+        uid = e.get("user_id", "")
+        t = e.get("time_ms", 0)
+        if not uid or t <= 0:
+            continue
+        existing = best.get(uid)
+        if existing is None or t < existing["time_ms"]:
+            best[uid] = dict(e)
+    rows = []
+    for uid, e in best.items():
+        if not e.get("name") and uid in names:
+            e["name"] = names[uid]
+        rows.append(e)
+    rows.sort(key=lambda r: r["time_ms"])
+    return rows[:limit]
+
+
+def crawler_user_best(user_id: str) -> dict | None:
+    uid = str(user_id)
+    best = None
+    for e in _read_crawler_all():
+        if not e.get("won"):
+            continue
         if str(e.get("user_id", "")) != uid:
             continue
         if best is None or e.get("time_ms", 10**9) < best.get("time_ms", 10**9):
