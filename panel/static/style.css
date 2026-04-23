@@ -29,9 +29,9 @@ main.container {
 .topnav a:hover { color: var(--pico-color); background: rgba(255,255,255,0.04); }
 .topnav a.active { color: var(--pico-color); background: rgba(255,255,255,0.08); }
 .topnav strong { letter-spacing: -0.01em; font-size: 1.05rem; }
-.brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--pico-color); padding: 0.2rem 0.5rem; border-radius: 6px; }
-.brand:hover { background: rgba(255,255,255,0.04); }
-.brand-logo { width: 32px; height: 32px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); }
+.topnav .brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--pico-color); padding: 0.2rem 0.5rem; border-radius: 6px; }
+.topnav .brand:hover { background: rgba(255,255,255,0.04); }
+.topnav img.brand-logo { width: 32px !important; height: 32px !important; max-width: 32px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); display: block; flex-shrink: 0; }
 
 .page-header { margin-bottom: 1.25rem; }
 .page-header h1 { margin-bottom: 0.25rem; font-size: 1.7rem; letter-spacing: -0.01em; }
