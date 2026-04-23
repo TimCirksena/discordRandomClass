@@ -12,7 +12,7 @@ from responses import (
 )
 from scoringmodel import calculate_class_score
 import randomClass
-from playerstats import record_roll, reset_session
+from playerstats import record_roll, reset_session, record_reroll
 from voice import speak_in_channel
 import config as app_config
 
@@ -91,10 +91,11 @@ class VoteView(discord.ui.View):
 class ClassRollView(discord.ui.View):
     """Reroll-Buttons unter der gerollten Klasse. Pro /random nur ein Reroll."""
 
-    def __init__(self, owner_id: int, owner_mention: str, channel: discord.abc.Messageable, class_data: dict):
+    def __init__(self, owner_id: int, owner_mention: str, owner_name: str, channel: discord.abc.Messageable, class_data: dict):
         super().__init__(timeout=300)  # 5 Minuten
         self.owner_id = owner_id
         self.owner_mention = owner_mention
+        self.owner_name = owner_name
         self.channel = channel
         self.class_data = class_data
         self.rc = randomClass.RandomClass()
@@ -103,12 +104,12 @@ class ClassRollView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.owner_id:
             await interaction.response.send_message(
-                "Nur wer die Klasse gerollt hat darf aendern.", ephemeral=True
+                "Nur wer die Klasse gerollt hat darf ändern.", ephemeral=True
             )
             return False
         return True
 
-    async def _apply_reroll(self, interaction: discord.Interaction, reroll_label: str):
+    async def _apply_reroll(self, interaction: discord.Interaction, reroll_label: str, reroll_type: str):
         """Zeigt die neue Klasse an, disabled alle Buttons und postet Vote-Message im Channel."""
         user_class_data[self.owner_id] = self.class_data
         total_score = calculate_class_score(self.class_data)
@@ -120,6 +121,8 @@ class ClassRollView(discord.ui.View):
             child.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
         self.stop()
+        # Reroll in Tages-Stats festhalten
+        record_reroll(self.owner_id, self.owner_name, reroll_type)
         # Vote-Message im Channel
         vote = VoteView(reroller_id=self.owner_id, reroll_label=reroll_label)
         try:
@@ -132,13 +135,13 @@ class ClassRollView(discord.ui.View):
     async def reroll_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["primary"] = self.rc.get_random_primary(perk1)
-        await self._apply_reroll(interaction, "Primary")
+        await self._apply_reroll(interaction, "Primary", "primary")
 
     @discord.ui.button(label="Secondary würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["secondary"] = self.rc.get_random_secondary(perk1)
-        await self._apply_reroll(interaction, "Secondary")
+        await self._apply_reroll(interaction, "Secondary", "secondary")
 
     @discord.ui.button(label="Perks würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_perks(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -150,13 +153,13 @@ class ClassRollView(discord.ui.View):
         if old_perk1 != new_perk1:
             self.class_data["primary"] = self.rc.get_random_primary(new_perk1)
             self.class_data["secondary"] = self.rc.get_random_secondary(new_perk1)
-        await self._apply_reroll(interaction, "Perks")
+        await self._apply_reroll(interaction, "Perks", "perks")
 
     @discord.ui.button(label="Extras würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_extras(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.class_data["equipment"] = self.rc.get_random_equipment()
         self.class_data["special_grenade"] = self.rc.get_random_special_grenade()
-        await self._apply_reroll(interaction, "Extras")
+        await self._apply_reroll(interaction, "Extras", "extras")
 
     async def on_timeout(self):
         for child in self.children:
@@ -315,6 +318,7 @@ async def random_class(interaction: discord.Interaction):
     view = ClassRollView(
         owner_id=user_id,
         owner_mention=interaction.user.mention,
+        owner_name=interaction.user.display_name,
         channel=interaction.channel,
         class_data=class_data,
     )

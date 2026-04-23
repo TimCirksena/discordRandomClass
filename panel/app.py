@@ -162,7 +162,24 @@ def weapon_base(raw: str) -> str:
     return raw.split(" with ")[0].strip() if " with " in raw else raw.strip()
 
 
-def build_stats_context(user_filter: str = ""):
+def _date_range_bounds(date_range: str):
+    """Gibt (date_from, date_to) als date oder None zurück. None = unbegrenzt."""
+    today = date.today()
+    if date_range == "today":
+        return today, today
+    if date_range == "yesterday":
+        y = today - timedelta(days=1)
+        return y, y
+    if date_range == "7days":
+        return today - timedelta(days=7), today
+    if date_range == "30days":
+        return today - timedelta(days=30), today
+    return None, None
+
+
+def build_stats_context(user_filter: str = "", date_range: str = "all"):
+    date_from, date_to = _date_range_bounds(date_range)
+
     # Granular history (neues Format, pro Roll eine Zeile)
     full_history = []
     history_file = STATS_DIR / "history.jsonl"
@@ -173,18 +190,28 @@ def build_stats_context(user_filter: str = ""):
                 if not line:
                     continue
                 try:
-                    full_history.append(json.loads(line))
+                    entry = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                # Datumsfilter fuer History
+                if date_from is not None:
+                    ts_date_str = entry.get("ts", "")[:10]
+                    if not ts_date_str:
+                        continue
+                    if ts_date_str < date_from.isoformat() or ts_date_str > date_to.isoformat():
+                        continue
+                full_history.append(entry)
 
-    # Leaderboard + Aggregat-Daten aus Daily Stats (alter + neuer Bestand)
-    players_raw = get_all_players_historical()
+    # Leaderboard + Aggregat-Daten aus Daily Stats, mit Datumsfilter
+    players_raw = get_all_players_historical(date_from=date_from, date_to=date_to)
+    # Optionen-Dropdown (immer alle User, nicht gefiltert, damit Wechsel moeglich bleibt)
+    players_all = get_all_players_historical()
 
-    # User-Liste für Dropdown (sortiert nach Rolls desc)
+    # User-Liste für Dropdown (immer all-time, damit Wechsel jederzeit möglich)
     user_options = sorted(
         [
             {"id": uid, "name": s.get("name") or f"User {uid[-4:]}", "rolls": s.get("rolls", 0)}
-            for uid, s in players_raw.items()
+            for uid, s in players_all.items()
             if s.get("rolls", 0) > 0
         ],
         key=lambda x: x["rolls"],
@@ -234,6 +261,8 @@ def build_stats_context(user_filter: str = ""):
             continue
         avg = stats.get("total_score", 0) / rolls
         worst = stats.get("worst_score", 999)
+        rerolls = stats.get("rerolls", 0)
+        reroll_rate = round(rerolls / rolls * 100, 1) if rolls else 0.0
         leaderboard.append({
             "id": uid,
             "name": stats.get("name") or f"User {uid[-4:]}",
@@ -243,6 +272,9 @@ def build_stats_context(user_filter: str = ""):
             "worst": worst if worst != 999 else 0,
             "legendary": stats.get("legendary_count", 0),
             "trash": stats.get("trash_count", 0),
+            "rerolls": rerolls,
+            "reroll_rate": reroll_rate,
+            "reroll_breakdown": stats.get("reroll_breakdown", {}),
         })
     leaderboard.sort(key=lambda p: p["rolls"], reverse=True)
 
@@ -276,6 +308,7 @@ def build_stats_context(user_filter: str = ""):
         "user_options": user_options,
         "user_filter": user_filter,
         "selected_user_name": selected_user_name,
+        "date_range": date_range,
     }
 
 
@@ -289,10 +322,13 @@ def index():
 @require_login
 def stats_page():
     user_filter = request.args.get("user", "").strip()
+    date_range = request.args.get("date", "all").strip() or "all"
+    if date_range not in ("today", "yesterday", "7days", "30days", "all"):
+        date_range = "all"
     # Default auf eingeloggten User wenn kein Filter gesetzt
     if user_filter == "" and "user" not in request.args:
         user_filter = session["user"]["id"]
-    ctx = build_stats_context(user_filter=user_filter)
+    ctx = build_stats_context(user_filter=user_filter, date_range=date_range)
     return render_template("stats.html", **ctx)
 
 

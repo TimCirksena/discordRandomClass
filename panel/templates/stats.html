@@ -35,6 +35,14 @@
       </p>
     </div>
     <form method="get" action="{{ url_for('stats_page') }}" class="user-filter">
+      <label for="date-select">Zeitraum:</label>
+      <select id="date-select" name="date" onchange="this.form.submit()">
+        <option value="all" {% if date_range == 'all' %}selected{% endif %}>Alle</option>
+        <option value="today" {% if date_range == 'today' %}selected{% endif %}>Heute</option>
+        <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Gestern</option>
+        <option value="7days" {% if date_range == '7days' %}selected{% endif %}>7 Tage</option>
+        <option value="30days" {% if date_range == '30days' %}selected{% endif %}>30 Tage</option>
+      </select>
       <label for="user-select">Spieler:</label>
       <select id="user-select" name="user" onchange="this.form.submit()">
         <option value="">Gesamt</option>
@@ -65,6 +73,7 @@
           <th class="num">Worst</th>
           <th class="num">Legendary</th>
           <th class="num">Trash</th>
+          <th class="num" title="Rerolls (Anteil an Rolls)">Rerolls</th>
         </tr>
       </thead>
       <tbody>
@@ -78,6 +87,7 @@
           <td class="num score-trash">{{ p.worst }}</td>
           <td class="num">{{ p.legendary }}</td>
           <td class="num">{{ p.trash }}</td>
+          <td class="num" title="Primary {{ p.reroll_breakdown.get('primary', 0) }} / Secondary {{ p.reroll_breakdown.get('secondary', 0) }} / Perks {{ p.reroll_breakdown.get('perks', 0) }} / Extras {{ p.reroll_breakdown.get('extras', 0) }}">{{ p.rerolls }} <span class="muted small">({{ p.reroll_rate }}%)</span></td>
         </tr>
         {% endfor %}
       </tbody>

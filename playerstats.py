@@ -42,6 +42,8 @@ def _empty_stats():
         "trash_count": 0,
         "weapons": {},
         "name": "",
+        "rerolls": 0,
+        "reroll_breakdown": {"primary": 0, "secondary": 0, "perks": 0, "extras": 0},
     }
 
 
@@ -58,14 +60,32 @@ def _save_json(path: str, data: dict):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def _load_all_historical() -> dict:
-    """Merge all daily stats files into one combined dict."""
+def _filename_to_date(filename: str):
+    """Parst DDMMYYYY_stats.json -> date object. None wenn nicht passend."""
+    if not filename.endswith("_stats.json"):
+        return None
+    base = filename[:-len("_stats.json")]
+    if len(base) != 8 or not base.isdigit():
+        return None
+    try:
+        return datetime.strptime(base, "%d%m%Y").date()
+    except ValueError:
+        return None
+
+
+def _load_all_historical(date_from=None, date_to=None) -> dict:
+    """Merge daily stats files. Optional Filter nach date-Range (inklusive)."""
     combined = {}
     names = _load_json(NAMES_FILE)
     if not os.path.exists(STATS_DIR):
         return combined
     for filename in os.listdir(STATS_DIR):
-        if not filename.endswith("_stats.json"):
+        d = _filename_to_date(filename)
+        if d is None:
+            continue
+        if date_from is not None and d < date_from:
+            continue
+        if date_to is not None and d > date_to:
             continue
         filepath = os.path.join(STATS_DIR, filename)
         daily = _load_json(filepath)
@@ -82,14 +102,17 @@ def _load_all_historical() -> dict:
                 c["worst_score"] = worst
             c["legendary_count"] += stats.get("legendary_count", 0)
             c["trash_count"] += stats.get("trash_count", 0)
+            c["rerolls"] += stats.get("rerolls", 0)
+            for rtype, count in stats.get("reroll_breakdown", {}).items():
+                c["reroll_breakdown"][rtype] = c["reroll_breakdown"].get(rtype, 0) + count
             for weapon, count in stats.get("weapons", {}).items():
                 c["weapons"][weapon] = c["weapons"].get(weapon, 0) + count
             if stats.get("name") and not c.get("name"):
                 c["name"] = stats["name"]
-        # Fallback: aus zentraler names-Datei
-        for uid, data in combined.items():
-            if not data.get("name") and uid in names:
-                data["name"] = names[uid]
+    # Fallback: Namen aus zentraler names-Datei ergänzen
+    for uid, data in combined.items():
+        if not data.get("name") and uid in names:
+            data["name"] = names[uid]
     return combined
 
 
@@ -270,6 +293,26 @@ def get_all_players_session() -> dict:
     return _session
 
 
-def get_all_players_historical() -> dict:
-    """Returns all historical stats."""
-    return _load_all_historical()
+def get_all_players_historical(date_from=None, date_to=None) -> dict:
+    """Returns all historical stats, optional mit Datumsfilter."""
+    return _load_all_historical(date_from=date_from, date_to=date_to)
+
+
+def record_reroll(user_id: int, display_name: str, reroll_type: str):
+    """Zählt einen Reroll auf dem Tagesaggregat des Users.
+
+    reroll_type: 'primary', 'secondary', 'perks' oder 'extras'.
+    """
+    if reroll_type not in ("primary", "secondary", "perks", "extras"):
+        return
+    uid = str(user_id)
+    for store in (_today, _session):
+        _ensure_player(store, uid)
+        s = store[uid]
+        s["rerolls"] = s.get("rerolls", 0) + 1
+        bd = s.setdefault("reroll_breakdown", {"primary": 0, "secondary": 0, "perks": 0, "extras": 0})
+        bd[reroll_type] = bd.get(reroll_type, 0) + 1
+        if display_name:
+            s["name"] = display_name
+    _save_json(_today_file(), _today)
+    _remember_name(user_id, display_name)
