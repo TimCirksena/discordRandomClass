@@ -51,14 +51,14 @@ class VoteView(discord.ui.View):
         gueltig = len(self.votes_gueltig)
         return (
             f"{mention} hat **{self.reroll_label}** rerollt. Abstimmung:\n"
-            f"> Opfer: **{opfer}** - Gueltig: **{gueltig}**"
+            f"> Opfer: **{opfer}** - Gültig: **{gueltig}**"
         )
 
     async def _register_vote(self, interaction: discord.Interaction, kind: str):
         uid = interaction.user.id
         if uid == self.reroller_id:
             await interaction.response.send_message(
-                "Du kannst nicht ueber deinen eigenen Reroll abstimmen.", ephemeral=True
+                "Du kannst nicht über deinen eigenen Reroll abstimmen.", ephemeral=True
             )
             return
         if kind == "opfer":
@@ -74,7 +74,7 @@ class VoteView(discord.ui.View):
     async def vote_opfer(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self._register_vote(interaction, "opfer")
 
-    @discord.ui.button(label="Gueltig", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Gültig", style=discord.ButtonStyle.success)
     async def vote_gueltig(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self._register_vote(interaction, "gueltig")
 
@@ -128,19 +128,19 @@ class ClassRollView(discord.ui.View):
         except discord.HTTPException:
             pass
 
-    @discord.ui.button(label="Primary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="Primary würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["primary"] = self.rc.get_random_primary(perk1)
         await self._apply_reroll(interaction, "Primary")
 
-    @discord.ui.button(label="Secondary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="Secondary würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
         perk1 = self.class_data.get("perk1", "")
         self.class_data["secondary"] = self.rc.get_random_secondary(perk1)
         await self._apply_reroll(interaction, "Secondary")
 
-    @discord.ui.button(label="Perks wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="Perks würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_perks(self, interaction: discord.Interaction, button: discord.ui.Button):
         old_perk1 = self.class_data.get("perk1", "")
         new_perk1 = self.rc.get_random_perk1()
@@ -152,7 +152,7 @@ class ClassRollView(discord.ui.View):
             self.class_data["secondary"] = self.rc.get_random_secondary(new_perk1)
         await self._apply_reroll(interaction, "Perks")
 
-    @discord.ui.button(label="Extras wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="Extras würfeln", style=discord.ButtonStyle.secondary, row=0)
     async def reroll_extras(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.class_data["equipment"] = self.rc.get_random_equipment()
         self.class_data["special_grenade"] = self.rc.get_random_special_grenade()
@@ -184,7 +184,7 @@ MAPS_DIR = os.path.join(os.path.dirname(__file__), "maps")
 
 # ==================== SLASH COMMANDS (ephemeral) ====================
 
-@tree.command(name="filter", description="[Admin] Setze Filter fuer alle /random Rolls")
+@tree.command(name="filter", description="[Admin] Setze Filter für alle /random Rolls")
 @app_commands.describe(
     min_score="Minimaler Klassen-Score (0-61, z.B. 18)",
     max_score="Maximaler Klassen-Score (0-61, z.B. 35)",
@@ -204,17 +204,17 @@ async def set_filter(
     no_sniper: bool = False,
     no_riot_shield: bool = False,
 ):
-    """Setzt globale Filter die fuer alle /random Rolls gelten."""
+    """Setzt globale Filter die für alle /random Rolls gelten."""
     user_id = interaction.user.id
 
     if user_id not in FILTER_IDS:
         await interaction.response.send_message("Du hast keine Berechtigung, Filter zu setzen!", ephemeral=True)
         return
 
-    # Score-Filter nur fuer Admins
+    # Score-Filter nur für Admins
     if (min_score is not None or max_score is not None) and user_id != ADMIN_ID:
         await interaction.response.send_message(
-            "Nur Admins duerfen Score-Filter setzen! Du kannst nur Waffenkategorien ausschliessen.",
+            "Nur Admins dürfen Score-Filter setzen! Du kannst nur Waffenkategorien ausschließen.",
             ephemeral=True
         )
         return
@@ -231,7 +231,7 @@ async def set_filter(
         active_filters["max_score"] = max_score
     active_filters["excluded"] = excluded
 
-    # Bestaetigungsnachricht bauen
+    # Bestätigungsnachricht bauen
     parts = []
     if min_score is not None:
         parts.append(f"Min Score: **{min_score}**")
@@ -245,17 +245,17 @@ async def set_filter(
     if parts:
         msg = "Filter gesetzt:\n" + "\n".join(parts)
     else:
-        msg = "Filter gesetzt: Keine Einschraenkungen (alles erlaubt)."
+        msg = "Filter gesetzt: Keine Einschränkungen (alles erlaubt)."
 
     await interaction.response.send_message(msg, ephemeral=False)
 
-@tree.command(name="reset", description="[Admin] Setze Filter zurueck")
+@tree.command(name="reset", description="[Admin] Setze Filter zurück")
 async def reset_filter(interaction: discord.Interaction):
-    """Setzt Filter zurueck (Admins: alles, Filter-User: nur Waffenkategorien)."""
+    """Setzt Filter zurück (Admins: alles, Filter-User: nur Waffenkategorien)."""
     user_id = interaction.user.id
 
     if user_id not in FILTER_IDS:
-        await interaction.response.send_message("Du hast keine Berechtigung, Filter zurueckzusetzen!", ephemeral=True)
+        await interaction.response.send_message("Du hast keine Berechtigung, Filter zurückzusetzen!", ephemeral=True)
         return
 
     if user_id == ADMIN_ID:
@@ -265,16 +265,16 @@ async def reset_filter(interaction: discord.Interaction):
         available_maps.clear()
         available_maps.extend(_all_maps)
         await interaction.response.send_message(
-            "Alle Filter und der Map-Pool wurden zurueckgesetzt. /random und /map sind wieder uneingeschraenkt.",
+            "Alle Filter und der Map-Pool wurden zurückgesetzt. /random und /map sind wieder uneingeschränkt.",
             ephemeral=False
         )
     else:
         active_filters["excluded"] = []
-        await interaction.response.send_message("Waffenkategorie-Filter wurden zurueckgesetzt.", ephemeral=False)
+        await interaction.response.send_message("Waffenkategorie-Filter wurden zurückgesetzt.", ephemeral=False)
 
 @tree.command(name="random", description="Generiere eine zufällige MW2 Klasse")
 async def random_class(interaction: discord.Interaction):
-    """Animated slot-machine reveal - nur fuer den User sichtbar."""
+    """Animated slot-machine reveal - nur für den User sichtbar."""
     user_id = interaction.user.id
 
     class_data, total_score = generate_class_data(
@@ -334,7 +334,7 @@ async def random_class(interaction: discord.Interaction):
         if is_roast_target:
             await interaction.channel.send(
                 f"# \U0001f921 Ausgerechnet DU? \U0001f921\n"
-                f">>> {interaction.user.mention} hat ne Legendary gezogen... verschwendet an den grössten Bot auf dem Server.\n"
+                f">>> {interaction.user.mention} hat ne Legendary gezogen... verschwendet an den größten Bot auf dem Server.\n"
                 f"Score: **{total_score}** / 61 - du wirst trotzdem 1/20 gehen, du Opfer."
             )
             await speak_in_channel(
@@ -374,7 +374,7 @@ async def random_class(interaction: discord.Interaction):
                 f"{interaction.user.display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
             )
 
-    # Extra-Beleidigung fuer Roast-Target bei JEDEM /random (zusaetzlich zum Tier-Effekt)
+    # Extra-Beleidigung für Roast-Target bei JEDEM /random (zusätzlich zum Tier-Effekt)
     if is_roast_target:
         await asyncio.sleep(0.3)
         await interaction.channel.send(
@@ -386,7 +386,7 @@ async def random_class(interaction: discord.Interaction):
 async def random_map(interaction: discord.Interaction):
     if not available_maps:
         await interaction.response.send_message(
-            "Alle Maps wurden bereits gespielt! Ein Admin kann mit `/reset` den Map-Pool zuruecksetzen.",
+            "Alle Maps wurden bereits gespielt! Ein Admin kann mit `/reset` den Map-Pool zurücksetzen.",
             ephemeral=True
         )
         return
@@ -455,7 +455,7 @@ async def set_threshold(
     trash: int = None,
 ):
     if interaction.user.id != ADMIN_ID:
-        await interaction.response.send_message("Nur Admins duerfen Schwellen setzen.", ephemeral=True)
+        await interaction.response.send_message("Nur Admins dürfen Schwellen setzen.", ephemeral=True)
         return
 
     changes = []
@@ -502,7 +502,7 @@ async def on_message(message: Message) -> None:
     if message.author == client.user:
         return
 
-    # Hinweis fuer alte ?-Prefix User
+    # Hinweis für alte ?-Prefix User
     if message.content in ["?random", "?zufall", "?", "?map", "?stats"] or message.content.startswith("?change"):
         await message.channel.send(
             f"{message.author.mention} Benutze jetzt Slash-Commands! "

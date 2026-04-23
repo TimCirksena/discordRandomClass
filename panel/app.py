@@ -30,7 +30,7 @@ FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-only-secret-change-me")
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATS_DIR = REPO_ROOT / "stats"
 
-# Bot-Module fuer History-Reader importierbar machen
+# Bot-Module für History-Reader importierbar machen
 sys.path.insert(0, str(REPO_ROOT))
 from playerstats import (  # noqa: E402
     read_history,
@@ -177,7 +177,7 @@ def build_stats_context(user_filter: str = ""):
     # Leaderboard + Aggregat-Daten aus Daily Stats (alter + neuer Bestand)
     players_raw = get_all_players_historical()
 
-    # User-Liste fuer Dropdown (sortiert nach Rolls desc)
+    # User-Liste für Dropdown (sortiert nach Rolls desc)
     user_options = sorted(
         [
             {"id": uid, "name": s.get("name") or f"User {uid[-4:]}", "rolls": s.get("rolls", 0)}
@@ -353,7 +353,7 @@ def auth_callback():
         log.warning(f"OAuth callback failed: {e}")
         return render_template("auth_error.html"), 400
 
-    # Guild-Membership pruefen
+    # Guild-Membership prüfen
     try:
         guilds = oauth.discord.get("users/@me/guilds", token=token).json()
     except Exception as e:

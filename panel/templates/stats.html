@@ -46,7 +46,7 @@
     </form>
   </div>
   {% if legacy_only and not user_filter %}
-  <p class="muted">Hinweis: Historische Daten aus Bot-Logs - detaillierte Roll-Historie (Sekundaerwaffen, Perks, Einzelrolls) wird erst ab jetzt erfasst.</p>
+  <p class="muted">Hinweis: Historische Daten aus Bot-Logs - detaillierte Roll-Historie (Sekundärwaffen, Perks, Einzelrolls) wird erst ab jetzt erfasst.</p>
   {% endif %}
 </header>
 
@@ -87,8 +87,8 @@
 {% endif %}
 
 <div class="grid-2">
-  {{ top_list('Top Primaerwaffen', top_primary) }}
-  {{ top_list('Top Sekundaerwaffen', top_secondary) }}
+  {{ top_list('Top Primärwaffen', top_primary) }}
+  {{ top_list('Top Sekundärwaffen', top_secondary) }}
 </div>
 <div class="grid-3">
   {{ top_list('Perk 1', top_perk1) }}

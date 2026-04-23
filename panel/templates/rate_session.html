@@ -27,13 +27,13 @@
 <article id="rate-card" class="rate-card"></article>
 
 <div class="rate-nav">
-  <button type="button" id="btn-prev" class="secondary">&larr; Zurueck</button>
+  <button type="button" id="btn-prev" class="secondary">&larr; Zurück</button>
   <button type="button" id="btn-skip" class="secondary">Skip &rarr;</button>
 </div>
 
 <div id="rate-empty" class="empty-state" hidden>
   <p>Keine Klassen zum bewerten in diesem Zeitraum.</p>
-  <p><a href="{{ url_for('rate_home') }}">Zurueck zur Uebersicht</a></p>
+  <p><a href="{{ url_for('rate_home') }}">Zurück zur Übersicht</a></p>
 </div>
 {% endblock %}
 
@@ -151,7 +151,7 @@ async function submitRating(judgment, suggested) {
     }),
   });
   // Wenn "Nur ungeratete" aktiv, aktueller bleibt derselbe Cursor weil rating ihn aus Liste nimmt
-  // Sonst auf naechsten
+  // Sonst auf nächsten
   if (!unratedOnly.checked) cursor++;
   await loadNext();
 }
