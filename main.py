@@ -7,8 +7,11 @@ from discord import Intents, Client, Message, app_commands
 from responses import (
     generate_class_data, create_loading_embed, create_reveal_embed,
     get_score_tier, create_map_embed, create_stats_embed,
-    change_primary_embed, change_secondary_embed, create_player_stats_embed
+    change_primary_embed, change_secondary_embed, create_player_stats_embed,
+    user_class_data,
 )
+from scoringmodel import calculate_class_score
+import randomClass
 from playerstats import record_roll, reset_session
 from voice import speak_in_channel
 
@@ -27,6 +30,82 @@ intents.message_content = True
 intents.voice_states = True
 client: Client = Client(intents=intents)
 tree = app_commands.CommandTree(client)
+
+
+# ==================== REROLL VIEW ====================
+
+class ClassRollView(discord.ui.View):
+    def __init__(self, owner_id: int, class_data: dict):
+        super().__init__(timeout=300)  # 5 Minuten
+        self.owner_id = owner_id
+        self.class_data = class_data
+        self.rc = randomClass.RandomClass()
+        self.message: discord.InteractionMessage | None = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message(
+                "Nur wer die Klasse gerollt hat darf aendern.", ephemeral=True
+            )
+            return False
+        return True
+
+    async def _refresh(self, interaction: discord.Interaction):
+        user_class_data[self.owner_id] = self.class_data
+        total_score = calculate_class_score(self.class_data)
+        embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Primary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    async def reroll_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        perk1 = self.class_data.get("perk1", "")
+        self.class_data["primary"] = self.rc.get_random_primary(perk1)
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="Secondary wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    async def reroll_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        perk1 = self.class_data.get("perk1", "")
+        self.class_data["secondary"] = self.rc.get_random_secondary(perk1)
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="Perks wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    async def reroll_perks(self, interaction: discord.Interaction, button: discord.ui.Button):
+        old_perk1 = self.class_data.get("perk1", "")
+        new_perk1 = self.rc.get_random_perk1()
+        self.class_data["perk1"] = new_perk1
+        self.class_data["perk2"] = self.rc.get_random_perk2()
+        self.class_data["perk3"] = self.rc.get_random_perk3()
+        # Perk1 steuert Bling (zwei Attachments) -> Waffen neu, falls geaendert
+        if old_perk1 != new_perk1:
+            self.class_data["primary"] = self.rc.get_random_primary(new_perk1)
+            self.class_data["secondary"] = self.rc.get_random_secondary(new_perk1)
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="Extras wuerfeln", style=discord.ButtonStyle.secondary, row=0)
+    async def reroll_extras(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.class_data["equipment"] = self.rc.get_random_equipment()
+        self.class_data["special_grenade"] = self.rc.get_random_special_grenade()
+        await self._refresh(interaction)
+
+    @discord.ui.button(label="Bleibt so", style=discord.ButtonStyle.success, row=0)
+    async def lock_in(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children:
+            child.disabled = True
+        total_score = calculate_class_score(self.class_data)
+        embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id)
+        existing = embed.footer.text if embed.footer and embed.footer.text else ""
+        embed.set_footer(text=(existing + "  -  LOCKED").strip(" -"))
+        await interaction.response.edit_message(embed=embed, view=self)
+        self.stop()
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message is not None:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
 
 # ==================== GLOBALE FILTER (vom Admin gesetzt) ====================
 
@@ -172,8 +251,13 @@ async def random_class(interaction: discord.Interaction):
     await interaction.edit_original_response(embed=create_reveal_embed(class_data, 3, user_id=user_id))
     await asyncio.sleep(1.0)
 
-    # Step 4: Finales Embed mit Score + Tier-Farbe
-    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id))
+    # Step 4: Finales Embed mit Score + Tier-Farbe + Reroll-Buttons
+    view = ClassRollView(owner_id=user_id, class_data=class_data)
+    message = await interaction.edit_original_response(
+        embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id),
+        view=view,
+    )
+    view.message = message
 
     is_roast_target = user_id == ROAST_TARGET_ID
 
