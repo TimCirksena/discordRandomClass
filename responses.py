@@ -220,12 +220,12 @@ def create_loading_embed(user_id=None):
     return embed
 
 
-def create_reveal_embed(class_data, step, total_score=None, user_id=None):
+def create_reveal_embed(class_data, step, total_score=None, user_id=None, spoilered=True):
     """
     Creates an embed for a specific animation step.
     Step 1: Perks revealed
     Step 2: + Equipment & Grenade
-    Step 3: + Primary & Secondary (spoilered)
+    Step 3: + Primary & Secondary (spoilered=True wraps weapons in || ||)
     Step 4: Final with score + tier
     """
     L = _labels(user_id)
@@ -250,8 +250,11 @@ def create_reveal_embed(class_data, step, total_score=None, user_id=None):
     if step >= 3:
         primary_text = _format_weapon(class_data["primary"], user_id)
         secondary_text = _format_weapon(class_data["secondary"], user_id)
-        embed.add_field(name=L["primary"], value=f'||{primary_text}||', inline=True)
-        embed.add_field(name=L["secondary"], value=f'||{secondary_text}||', inline=True)
+        if spoilered:
+            primary_text = f'||{primary_text}||'
+            secondary_text = f'||{secondary_text}||'
+        embed.add_field(name=L["primary"], value=primary_text, inline=True)
+        embed.add_field(name=L["secondary"], value=secondary_text, inline=True)
     else:
         embed.add_field(name=L["primary"], value='```\n???\n```', inline=True)
         embed.add_field(name=L["secondary"], value='```\n???\n```', inline=True)

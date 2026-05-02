@@ -91,7 +91,7 @@ class VoteView(discord.ui.View):
 class ClassRollView(discord.ui.View):
     """Reroll-Buttons unter der gerollten Klasse. Pro /random nur ein Reroll."""
 
-    def __init__(self, owner_id: int, owner_mention: str, owner_name: str, channel: discord.abc.Messageable, class_data: dict, parent_ts: str = "", initial_score: int = 0):
+    def __init__(self, owner_id: int, owner_mention: str, owner_name: str, channel: discord.abc.Messageable, class_data: dict, parent_ts: str = "", initial_score: int = 0, spoilered: bool = True):
         super().__init__(timeout=300)  # 5 Minuten
         self.owner_id = owner_id
         self.owner_mention = owner_mention
@@ -102,6 +102,7 @@ class ClassRollView(discord.ui.View):
         self.message: discord.InteractionMessage | None = None
         self.parent_ts = parent_ts
         self.initial_score = initial_score
+        self.spoilered = spoilered
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.owner_id:
@@ -115,7 +116,7 @@ class ClassRollView(discord.ui.View):
         """Zeigt die neue Klasse an, disabled alle Buttons und postet Vote-Message im Channel."""
         user_class_data[self.owner_id] = self.class_data
         total_score = calculate_class_score(self.class_data)
-        embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id)
+        embed = create_reveal_embed(self.class_data, 4, total_score, user_id=self.owner_id, spoilered=self.spoilered)
         existing = embed.footer.text if embed.footer and embed.footer.text else ""
         embed.set_footer(text=(existing + f"  -  rerollt: {reroll_label}").strip(" -"))
         # Alle Buttons disablen - ein Reroll pro /random
@@ -456,15 +457,15 @@ async def random_class(interaction: discord.Interaction):
     await asyncio.sleep(0.8)
 
     # Step 1: Perks enthuellen
-    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 1, user_id=user_id))
+    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 1, user_id=user_id, spoilered=False))
     await asyncio.sleep(0.8)
 
     # Step 2: Equipment & Grenade enthuellen
-    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 2, user_id=user_id))
+    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 2, user_id=user_id, spoilered=False))
     await asyncio.sleep(0.8)
 
-    # Step 3: Waffen enthuellen (spoilered)
-    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 3, user_id=user_id))
+    # Step 3: Waffen enthuellen (ephemeral - kein Spoiler nötig, sieht eh nur der User)
+    await interaction.edit_original_response(embed=create_reveal_embed(class_data, 3, user_id=user_id, spoilered=False))
     await asyncio.sleep(1.0)
 
     # Step 4: Finales Embed mit Score + Tier-Farbe + Reroll-Buttons
@@ -478,9 +479,10 @@ async def random_class(interaction: discord.Interaction):
         class_data=class_data,
         parent_ts=roll_ts,
         initial_score=total_score,
+        spoilered=False,
     )
     message = await interaction.edit_original_response(
-        embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id),
+        embed=create_reveal_embed(class_data, 4, total_score, user_id=user_id, spoilered=False),
         view=view,
     )
     view.message = message
