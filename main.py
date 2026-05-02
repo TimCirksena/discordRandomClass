@@ -20,7 +20,6 @@ import config as app_config
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
 ADMIN_ID: Final[int] = 424477646555185162
-ROAST_TARGET_ID: Final[int] = 683097369440813056
 FILTER_IDS: Final[set] = {
     ADMIN_ID,
     695156653770932274,
@@ -196,6 +195,149 @@ available_maps = list(_all_maps)
 
 MAPS_DIR = os.path.join(os.path.dirname(__file__), "maps")
 
+# ==================== SHARED CORE (Slash + Text) ====================
+
+async def _announce_tier(user, channel, guild, total_score: int) -> None:
+    """Tier-Announcement (Legendary/Trash) + Voice-TTS. Geteilt zwischen Slash- und Text-Commands."""
+    legendary_min = app_config.get("legendary_min")
+    trash_max = app_config.get("trash_max")
+    display_name = getattr(user, "display_name", user.name)
+
+    if total_score > legendary_min:
+        await asyncio.sleep(0.5)
+        await channel.send(
+            f"# ⚡\U0001f525 LEGENDARY DROP! \U0001f525⚡\n"
+            f">>> {user.mention} hat eine **OVERPOWERED** Klasse gezogen!\n"
+            f"Score: **{total_score}** / 61 \U0001f608"
+        )
+        if guild:
+            await speak_in_channel(
+                guild, user,
+                f"{display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
+            )
+    elif total_score < trash_max:
+        await asyncio.sleep(0.5)
+        await channel.send(
+            f"# \U0001f480 Trash Tier... \U0001f480\n"
+            f">>> {user.mention} hat eine **MÜLL-KLASSE** gezogen, der huso!\n"
+            f"Score: **{total_score}** / 61 \U0001f5d1️"
+        )
+        if guild:
+            await speak_in_channel(
+                guild, user,
+                f"{display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
+            )
+
+
+# ==================== TEXT-COMMAND HANDLER (für Matrix-Bridge etc.) ====================
+# Slash-Commands nutzen Discord-Interactions (ephemeral möglich). Wenn ein User /random aber
+# als reine Textnachricht schickt (z.B. via mautrix-discord aus Element heraus), greifen
+# diese Handler und antworten öffentlich im Channel.
+
+async def _text_random(message: Message) -> None:
+    user = message.author
+    channel = message.channel
+    guild = message.guild
+    display_name = getattr(user, "display_name", user.name)
+
+    class_data, total_score = generate_class_data(
+        user.id,
+        min_score=active_filters["min_score"],
+        max_score=active_filters["max_score"],
+        excluded_categories=active_filters["excluded"],
+    )
+
+    if class_data is None:
+        await channel.send(
+            f"{user.mention} Konnte keine Klasse finden, die den aktiven Filtern entspricht. "
+            "Ein Admin muss die Filter anpassen!"
+        )
+        return
+
+    record_roll(user.id, class_data, total_score, display_name=display_name)
+
+    msg = await channel.send(embed=create_loading_embed(user.id))
+    await asyncio.sleep(0.8)
+    await msg.edit(embed=create_reveal_embed(class_data, 1, user_id=user.id))
+    await asyncio.sleep(0.8)
+    await msg.edit(embed=create_reveal_embed(class_data, 2, user_id=user.id))
+    await asyncio.sleep(0.8)
+    await msg.edit(embed=create_reveal_embed(class_data, 3, user_id=user.id))
+    await asyncio.sleep(1.0)
+
+    roll_ts = datetime.now().isoformat(timespec="seconds")
+    view = ClassRollView(
+        owner_id=user.id,
+        owner_mention=user.mention,
+        owner_name=display_name,
+        channel=channel,
+        class_data=class_data,
+        parent_ts=roll_ts,
+        initial_score=total_score,
+    )
+    await msg.edit(
+        embed=create_reveal_embed(class_data, 4, total_score, user_id=user.id),
+        view=view,
+    )
+    view.message = msg
+
+    await _announce_tier(user, channel, guild, total_score)
+
+
+async def _text_map(message: Message) -> None:
+    channel = message.channel
+    if not available_maps:
+        await channel.send(
+            f"{message.author.mention} Alle Maps wurden bereits gespielt! "
+            "Ein Admin kann mit `/reset` den Map-Pool zurücksetzen."
+        )
+        return
+
+    embed, map_name = create_map_embed(message.author.id, available_maps)
+    if map_name and map_name in available_maps:
+        available_maps.remove(map_name)
+
+    file = None
+    if map_name:
+        for ext in ("png", "jpg", "jpeg", "webp"):
+            img_path = os.path.join(MAPS_DIR, f"{map_name}.{ext}")
+            if os.path.exists(img_path):
+                file = discord.File(img_path, filename=f"map.{ext}")
+                embed.set_image(url=f"attachment://map.{ext}")
+                break
+
+    remaining = len(available_maps)
+    embed.set_footer(text=f"Noch {remaining}/{len(_all_maps)} Maps verfuegbar")
+
+    if file:
+        await channel.send(embed=embed, file=file)
+    else:
+        await channel.send(embed=embed)
+
+
+async def _text_stats(message: Message) -> None:
+    await message.channel.send(embed=create_stats_embed())
+
+
+async def _text_playerstats(message: Message) -> None:
+    display_name = getattr(message.author, "display_name", message.author.name)
+    embed = create_player_stats_embed(message.author.id, display_name)
+    await message.channel.send(embed=embed)
+
+
+async def _text_change(message: Message, what: str) -> None:
+    user_id = message.author.id
+    if what == "primary":
+        result = change_primary_embed(user_id)
+    else:
+        result = change_secondary_embed(user_id)
+
+    if isinstance(result, str):
+        await message.channel.send(f"{message.author.mention} {result}")
+    else:
+        await message.channel.send(embed=result)
+
+
 # ==================== SLASH COMMANDS (ephemeral) ====================
 
 @tree.command(name="filter", description="[Admin] Setze Filter für alle /random Rolls")
@@ -343,62 +485,7 @@ async def random_class(interaction: discord.Interaction):
     )
     view.message = message
 
-    is_roast_target = user_id == ROAST_TARGET_ID
-    legendary_min = app_config.get("legendary_min")
-    trash_max = app_config.get("trash_max")
-
-    # Bonus-Effekte je nach Tier (Channel-Nachricht + Voice-TTS)
-    if total_score > legendary_min:
-        await asyncio.sleep(0.5)
-        if is_roast_target:
-            await interaction.channel.send(
-                f"# \U0001f921 Ausgerechnet DU? \U0001f921\n"
-                f">>> {interaction.user.mention} hat ne Legendary gezogen... verschwendet an den größten Bot auf dem Server.\n"
-                f"Score: **{total_score}** / 61 - du wirst trotzdem 1/20 gehen, du Opfer."
-            )
-            await speak_in_channel(
-                interaction.guild, interaction.user,
-                f"{interaction.user.display_name} hat ne Legendary gezogen, aber mal ehrlich - der wird die Klasse trotzdem versauen! Pure Glückssache amk!"
-            )
-        else:
-            await interaction.channel.send(
-                f"# \u26a1\U0001f525 LEGENDARY DROP! \U0001f525\u26a1\n"
-                f">>> {interaction.user.mention} hat eine **OVERPOWERED** Klasse gezogen!\n"
-                f"Score: **{total_score}** / 61 \U0001f608"
-            )
-            await speak_in_channel(
-                interaction.guild, interaction.user,
-                f"{interaction.user.display_name} hat eine OVERPOWERED Klasse gezogen amk! Score {total_score} von 61!"
-            )
-    elif total_score < trash_max:
-        await asyncio.sleep(0.5)
-        if is_roast_target:
-            await interaction.channel.send(
-                f"# \U0001f480 PERFECT MATCH \U0001f480\n"
-                f">>> {interaction.user.mention} MÜLL-Klasse für den MÜLL-Spieler! Du Schmock.\n"
-                f"Score: **{total_score}** / 61 - endlich mal ne Klasse die zu deinem Skill passt!"
-            )
-            await speak_in_channel(
-                interaction.guild, interaction.user,
-                f"{interaction.user.display_name} hat ne Müll Klasse gezogen - perfekt für dich du Opfer! Score {total_score} von 61. Bleib lieber in der Lobby du Behindi!"
-            )
-        else:
-            await interaction.channel.send(
-                f"# \U0001f480 Trash Tier... \U0001f480\n"
-                f">>> {interaction.user.mention} hat eine **MÜLL-KLASSE** gezogen, der huso!\n"
-                f"Score: **{total_score}** / 61 \U0001f5d1\ufe0f"
-            )
-            await speak_in_channel(
-                interaction.guild, interaction.user,
-                f"{interaction.user.display_name} hat eine Müll Klasse gezogen! Score {total_score} von 61!"
-            )
-
-    # Extra-Beleidigung für Roast-Target bei JEDEM /random (zusätzlich zum Tier-Effekt)
-    if is_roast_target:
-        await asyncio.sleep(0.3)
-        await interaction.channel.send(
-            f"Übrigens {interaction.user.mention}: egal was du rollst, du bleibst trotzdem der schlechteste Spieler hier du Hund."
-        )
+    await _announce_tier(interaction.user, interaction.channel, interaction.guild, total_score)
 
 
 @tree.command(name="map", description="Generiere zufällige Map-Settings")
@@ -521,16 +608,49 @@ async def on_message(message: Message) -> None:
     if message.author == client.user:
         return
 
+    content = (message.content or "").strip()
+    lower = content.lower()
+    parts = lower.split()
+    cmd = parts[0] if parts else ""
+
+    # Text-Trigger für /-Commands (z.B. via Matrix-Bridge, wo /random als reine Textnachricht ankommt).
+    # Echte Discord-Slash-Commands laufen über interactions, nicht on_message - hier kollidiert nichts.
+    # `!`-Prefix wird zusätzlich akzeptiert, falls jemand das gewohnt ist.
+    if cmd in ("/random", "!random"):
+        await _text_random(message)
+        return
+    if cmd in ("/map", "!map"):
+        await _text_map(message)
+        return
+    if cmd in ("/stats", "!stats"):
+        await _text_stats(message)
+        return
+    if cmd in ("/playerstats", "!playerstats"):
+        await _text_playerstats(message)
+        return
+    if cmd in ("/change", "!change"):
+        sub = parts[1] if len(parts) > 1 else ""
+        if sub.startswith("primary"):
+            await _text_change(message, "primary")
+        elif sub.startswith("secondary"):
+            await _text_change(message, "secondary")
+        else:
+            await message.channel.send(
+                f"{message.author.mention} Benutze `/change primary` oder `/change secondary`."
+            )
+        return
+
     # Hinweis für alte ?-Prefix User
-    if message.content in ["?random", "?zufall", "?", "?map", "?stats"] or message.content.startswith("?change"):
+    if content in ["?random", "?zufall", "?", "?map", "?stats"] or content.startswith("?change"):
         await message.channel.send(
             f"{message.author.mention} Benutze jetzt Slash-Commands! "
             "Tippe `/random`, `/map`, `/stats` oder `/change`. du hond."
         )
         return
 
-    # Auf alle anderen Nachrichten reagieren
-    if message.content and not message.content.startswith("/"):
+    # Insult für alles ohne /-Prefix - Bots/Webhooks (z.B. Bridge-Pingbacks) verschonen,
+    # damit der Bot sich nicht selbst oder die Bridge in Schleifen beleidigt.
+    if content and not content.startswith("/") and not message.author.bot:
         await message.channel.send(
             f"{message.author.mention} Halt die Fresse und benutz `/`-Commands, du Hund."
         )
